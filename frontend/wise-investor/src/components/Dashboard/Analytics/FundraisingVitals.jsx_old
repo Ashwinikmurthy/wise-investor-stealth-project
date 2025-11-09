@@ -1,0 +1,311 @@
+import React, { useState, useEffect } from 'react';
+import api from '../../../utils/axiosInstance';
+import { useAuth } from '../../../context/AuthContext';
+import {
+  DollarSign,
+  TrendingUp,
+  Target,
+  Calendar,
+  Gift,
+  Percent,
+} from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  ComposedChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import '../Dashboard.css';
+
+const FundraisingVitals = () => {
+  const { API_BASE_URL, getOrganizationId } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFundraisingData();
+  }, []);
+
+  const fetchFundraisingData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get organization ID
+      const orgId = getOrganizationId();
+      if (!orgId) {
+        throw new Error('Organization ID not found. Please login again.');
+      }
+      const response = await api.get(`/api/v1/analytics/fundraising-vitals/${orgId}`);
+      setData(response.data);
+    } catch (err) {
+      console.error('Error fetching fundraising data:', err);
+      setData(getMockData());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMockData = () => ({
+    total_raised: 2487650,
+    ytd_goal: 3000000,
+    goal_progress: 82.9,
+    avg_gift_size: 1850,
+    major_gifts: 850000,
+    recurring_revenue: 425000,
+    monthly_rollup: [
+      { month: 'Jan', revenue: 185000, goal: 250000, gifts: 98 },
+      { month: 'Feb', revenue: 195000, goal: 250000, gifts: 105 },
+      { month: 'Mar', revenue: 210000, goal: 250000, gifts: 112 },
+      { month: 'Apr', revenue: 198000, goal: 250000, gifts: 102 },
+      { month: 'May', revenue: 225000, goal: 250000, gifts: 118 },
+      { month: 'Jun', revenue: 240000, goal: 250000, gifts: 128 },
+    ],
+    revenue_sources: [
+      { source: 'Individual Giving', amount: 1250000, percentage: 50.2 },
+      { source: 'Corporate Sponsors', amount: 625000, percentage: 25.1 },
+      { source: 'Grants', amount: 437650, percentage: 17.6 },
+      { source: 'Events', amount: 125000, percentage: 5.0 },
+      { source: 'Other', amount: 50000, percentage: 2.1 },
+    ],
+    campaign_performance: [
+      { campaign: 'Annual Gala', target: 300000, raised: 285000, donors: 245 },
+      { campaign: 'Year-End Appeal', target: 500000, raised: 520000, donors: 850 },
+      { campaign: 'Spring Drive', target: 200000, raised: 175000, donors: 325 },
+      { campaign: 'Major Gifts', target: 800000, raised: 850000, donors: 45 },
+    ],
+    gift_size_distribution: [
+      { range: '$1-$100', count: 450, total: 32500 },
+      { range: '$101-$500', count: 280, total: 98000 },
+      { range: '$501-$1,000', count: 185, total: 142500 },
+      { range: '$1,001-$5,000', count: 120, total: 285000 },
+      { range: '$5,001+', count: 65, total: 850000 },
+    ],
+  });
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading fundraising vitals...</p>
+      </div>
+    );
+  }
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  return (
+    <div className="analytics-container">
+      <div className="analytics-header">
+        <h2>Fundraising Vitals</h2>
+        <p>Revenue tracking, campaign performance, and fundraising metrics</p>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="metrics-grid">
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <DollarSign size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Total Raised (YTD)</p>
+            <h3 className="metric-value">{formatCurrency(data.total_raised)}</h3>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${data.goal_progress}%` }}></div>
+            </div>
+            <p className="metric-subtitle">{data.goal_progress}% of {formatCurrency(data.ytd_goal)} goal</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
+            <Gift size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Average Gift Size</p>
+            <h3 className="metric-value">{formatCurrency(data.avg_gift_size)}</h3>
+            <p className="metric-subtitle">Across all donations</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+            <TrendingUp size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Major Gifts</p>
+            <h3 className="metric-value">{formatCurrency(data.major_gifts)}</h3>
+            <p className="metric-subtitle">$5,000+ donations</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
+            <Calendar size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Recurring Revenue</p>
+            <h3 className="metric-value">{formatCurrency(data.recurring_revenue)}</h3>
+            <p className="metric-subtitle">Monthly sustaining gifts</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="charts-grid">
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Monthly Revenue vs Goal</h3>
+            <p>Fundraising performance and goal tracking</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={data.monthly_rollup}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="month" stroke="#64748b" />
+                <YAxis yAxisId="left" stroke="#64748b" tickFormatter={(value) => `$${value / 1000}k`} />
+                <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === 'gifts' ? value : formatCurrency(value),
+                    name === 'revenue' ? 'Revenue' : name === 'goal' ? 'Goal' : 'Gifts',
+                  ]}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Area
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="goal"
+                  fill="#e2e8f0"
+                  stroke="#94a3b8"
+                  name="Goal"
+                />
+                <Bar yAxisId="left" dataKey="revenue" fill="#667eea" name="Revenue" radius={[8, 8, 0, 0]} />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="gifts"
+                  stroke="#f093fb"
+                  strokeWidth={2}
+                  name="Gift Count"
+                  dot={{ fill: '#f093fb', r: 4 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Revenue Sources</h3>
+            <p>Breakdown by funding source</p>
+          </div>
+          <div className="chart-body">
+            <div className="revenue-sources-list">
+              {data.revenue_sources.map((source, index) => (
+                <div key={index} className="revenue-source-item">
+                  <div className="source-header">
+                    <span className="source-name">{source.source}</span>
+                    <span className="source-amount">{formatCurrency(source.amount)}</span>
+                  </div>
+                  <div className="source-progress">
+                    <div
+                      className="source-progress-fill"
+                      style={{
+                        width: `${source.percentage}%`,
+                        background: `linear-gradient(135deg, ${['#667eea', '#43e97b', '#f093fb', '#4facfe', '#fa709a'][index]} 0%, ${['#764ba2', '#38f9d7', '#f5576c', '#00f2fe', '#fee140'][index]} 100%)`,
+                      }}
+                    ></div>
+                  </div>
+                  <span className="source-percentage">{source.percentage}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Campaign Performance</h3>
+            <p>Progress towards campaign goals</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.campaign_performance} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis type="number" stroke="#64748b" tickFormatter={(value) => `$${value / 1000}k`} />
+                <YAxis dataKey="campaign" type="category" stroke="#64748b" width={120} />
+                <Tooltip
+                  formatter={(value, name) => [
+                    formatCurrency(value),
+                    name === 'target' ? 'Target' : name === 'raised' ? 'Raised' : 'Donors',
+                  ]}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="target" fill="#e2e8f0" name="Target" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="raised" fill="#667eea" name="Raised" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Gift Size Distribution</h3>
+            <p>Donor count and total revenue by gift range</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.gift_size_distribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="range" stroke="#64748b" />
+                <YAxis yAxisId="left" stroke="#64748b" />
+                <YAxis yAxisId="right" orientation="right" stroke="#64748b" tickFormatter={(value) => `$${value / 1000}k`} />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === 'total' ? formatCurrency(value) : value,
+                    name === 'count' ? 'Donors' : 'Total Revenue',
+                  ]}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Bar yAxisId="left" dataKey="count" fill="#4facfe" name="Donor Count" radius={[8, 8, 0, 0]} />
+                <Bar yAxisId="right" dataKey="total" fill="#764ba2" name="Total Revenue" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FundraisingVitals;

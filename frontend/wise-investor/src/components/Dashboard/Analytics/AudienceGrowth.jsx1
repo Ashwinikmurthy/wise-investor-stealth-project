@@ -1,0 +1,301 @@
+import React, { useState, useEffect } from 'react';
+import api from '../../../utils/axiosInstance';
+import { useAuth } from '../../../context/AuthContext';
+import {
+  UserPlus,
+  Mail,
+  MessageCircle,
+  Share2,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import '../Dashboard.css';
+
+const AudienceGrowth = () => {
+  const { API_BASE_URL, getOrganizationId } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAudienceGrowthData();
+  }, []);
+
+  const fetchAudienceGrowthData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get organization ID
+      const orgId = getOrganizationId();
+      if (!orgId) {
+        throw new Error('Organization ID not found. Please login again.');
+      }
+      const response = await api.get(`/api/v1/analytics/audience-growth/${orgId}`);
+      setData(response.data);
+    } catch (err) {
+      console.error('Error fetching audience growth data:', err);
+      setData(getMockData());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMockData = () => ({
+    total_subscribers: 28450,
+    growth_rate: 14.2,
+    email_open_rate: 32.5,
+    social_followers: 45820,
+    growth_trend: [
+      { month: 'Jan', subscribers: 22500, social: 38200 },
+      { month: 'Feb', subscribers: 23800, social: 39500 },
+      { month: 'Mar', subscribers: 24900, social: 41000 },
+      { month: 'Apr', subscribers: 26100, social: 42800 },
+      { month: 'May', subscribers: 27200, social: 44200 },
+      { month: 'Jun', subscribers: 28450, social: 45820 },
+    ],
+    channel_growth: [
+      { channel: 'Email List', subscribers: 28450, growth: 14.2 },
+      { channel: 'Facebook', subscribers: 18500, growth: 8.5 },
+      { channel: 'Instagram', subscribers: 15200, growth: 22.3 },
+      { channel: 'Twitter', subscribers: 8420, growth: 5.7 },
+      { channel: 'LinkedIn', subscribers: 3700, growth: 18.9 },
+    ],
+    engagement_metrics: [
+      { metric: 'Email Open Rate', value: 32.5, benchmark: 25 },
+      { metric: 'Click-Through Rate', value: 4.8, benchmark: 3.5 },
+      { metric: 'Social Engagement', value: 6.2, benchmark: 5 },
+      { metric: 'Content Shares', value: 850, benchmark: 600 },
+    ],
+    acquisition_sources: [
+      { source: 'Website Signup', count: 8420 },
+      { source: 'Social Media', count: 6850 },
+      { source: 'Events', count: 4250 },
+      { source: 'Referrals', count: 3920 },
+      { source: 'Partnerships', count: 2580 },
+      { source: 'Other', count: 2430 },
+    ],
+    content_performance: [
+      { type: 'Newsletter', sent: 52, opens: 16900, clicks: 2480 },
+      { type: 'Social Posts', sent: 248, opens: 125000, clicks: 7500 },
+      { type: 'Blog Articles', sent: 24, opens: 18500, clicks: 3200 },
+      { type: 'Videos', sent: 12, opens: 42000, clicks: 8400 },
+    ],
+  });
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading audience growth data...</p>
+      </div>
+    );
+  }
+
+  const formatNumber = (value) => {
+    return new Intl.NumberFormat('en-US').format(value);
+  };
+
+  return (
+    <div className="analytics-container">
+      <div className="analytics-header">
+        <h2>Audience Growth Analytics</h2>
+        <p>Track subscriber growth, engagement, and channel performance</p>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="metrics-grid">
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <Mail size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Email Subscribers</p>
+            <h3 className="metric-value">{formatNumber(data.total_subscribers)}</h3>
+            <div className="metric-change positive">
+              <TrendingUp size={16} />
+              <span>{data.growth_rate}% growth</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
+            <Users size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Social Followers</p>
+            <h3 className="metric-value">{formatNumber(data.social_followers)}</h3>
+            <p className="metric-subtitle">Across all platforms</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+            <MessageCircle size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Email Open Rate</p>
+            <h3 className="metric-value">{data.email_open_rate}%</h3>
+            <p className="metric-subtitle">Above industry avg</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
+            <UserPlus size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Monthly Growth Rate</p>
+            <h3 className="metric-value">{data.growth_rate}%</h3>
+            <p className="metric-subtitle">New subscribers/followers</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="charts-grid">
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Audience Growth Trend</h3>
+            <p>Email subscribers and social followers over time</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={data.growth_trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="month" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip
+                  formatter={(value) => formatNumber(value)}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="subscribers"
+                  stroke="#667eea"
+                  strokeWidth={3}
+                  name="Email Subscribers"
+                  dot={{ fill: '#667eea', r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="social"
+                  stroke="#f093fb"
+                  strokeWidth={3}
+                  name="Social Followers"
+                  dot={{ fill: '#f093fb', r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Channel Growth</h3>
+            <p>Subscribers and growth rate by channel</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.channel_growth} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis type="number" stroke="#64748b" />
+                <YAxis dataKey="channel" type="category" stroke="#64748b" width={100} />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === 'growth' ? `${value}%` : formatNumber(value),
+                    name === 'subscribers' ? 'Subscribers' : 'Growth Rate',
+                  ]}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Bar dataKey="subscribers" fill="#667eea" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Acquisition Sources</h3>
+            <p>Where new subscribers come from</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.acquisition_sources}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="source" stroke="#64748b" angle={-15} textAnchor="end" height={80} />
+                <YAxis stroke="#64748b" />
+                <Tooltip
+                  formatter={(value) => formatNumber(value)}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Bar dataKey="count" fill="url(#colorAcq)" radius={[8, 8, 0, 0]} />
+                <defs>
+                  <linearGradient id="colorAcq" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#43e97b" />
+                    <stop offset="100%" stopColor="#38f9d7" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Content Performance</h3>
+            <p>Engagement metrics by content type</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.content_performance}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="type" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip
+                  formatter={(value) => formatNumber(value)}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="opens" fill="#4facfe" name="Views/Opens" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="clicks" fill="#764ba2" name="Clicks" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AudienceGrowth;

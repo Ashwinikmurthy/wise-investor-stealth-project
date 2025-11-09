@@ -1,0 +1,314 @@
+import React, { useState, useEffect } from 'react';
+import api from '../../../utils/axiosInstance';
+import { useAuth } from '../../../context/AuthContext';
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Users,
+  Target,
+  Calendar,
+} from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import '../Dashboard.css';
+
+const OverviewDashboard = () => {
+  const { user, API_BASE_URL, getOrganizationId } = useAuth();
+  const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchOverviewMetrics();
+  }, []);
+
+  const fetchOverviewMetrics = async () => {
+    try {
+      setLoading(true);
+      
+      // Get organization ID
+      const orgId = getOrganizationId();
+      if (!orgId) {
+        throw new Error('Organization ID not found. Please login again.');
+      }
+      const response = await api.get(`/api/v1/analytics/executive-dashboard/${orgId}`);
+      
+      // Transform API response to match component's expected structure
+      if (response.data && response.data.key_metrics) {
+        const apiData = response.data;
+        const transformedData = {
+          total_donors: apiData.key_metrics.total_donors,
+          donor_growth: 0, // Not in API yet, use 0 for now
+          total_revenue: apiData.key_metrics.total_revenue_ytd,
+          revenue_growth: 0, // Not in API yet, use 0 for now
+          active_programs: 8, // Not in API, placeholder
+          beneficiaries_served: 15420, // Not in API, placeholder
+          // Mock data for charts until you create those endpoints
+          monthly_revenue: [
+            { month: 'Jan', revenue: 185000 },
+            { month: 'Feb', revenue: 195000 },
+            { month: 'Mar', revenue: 210000 },
+            { month: 'Apr', revenue: 198000 },
+            { month: 'May', revenue: 225000 },
+            { month: 'Jun', revenue: 240000 },
+          ],
+          donor_segments: [
+            { name: 'Major Donors', value: Math.round(apiData.key_metrics.total_donors * 0.05) },
+            { name: 'Mid-Level', value: Math.round(apiData.key_metrics.total_donors * 0.15) },
+            { name: 'Regular', value: Math.round(apiData.key_metrics.total_donors * 0.40) },
+            { name: 'New', value: Math.round(apiData.key_metrics.total_donors * 0.40) },
+          ],
+          program_performance: [
+            { program: 'Education', impact: 85, budget: 500000 },
+            { program: 'Healthcare', impact: 92, budget: 380000 },
+            { program: 'Community', impact: 78, budget: 280000 },
+            { program: 'Environment', impact: 88, budget: 420000 },
+          ],
+        };
+        setMetrics(transformedData);
+      } else {
+        console.log('API response structure unexpected, using mock data');
+        setMetrics(getMockOverviewData());
+      }
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching overview metrics:', err);
+      setError('Failed to load overview metrics');
+      // Use mock data for demonstration
+      setMetrics(getMockOverviewData());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMockOverviewData = () => ({
+    total_donors: 1247,
+    donor_growth: 12.5,
+    total_revenue: 2487650,
+    revenue_growth: 18.3,
+    active_programs: 8,
+    beneficiaries_served: 15420,
+    monthly_revenue: [
+      { month: 'Jan', revenue: 185000 },
+      { month: 'Feb', revenue: 195000 },
+      { month: 'Mar', revenue: 210000 },
+      { month: 'Apr', revenue: 198000 },
+      { month: 'May', revenue: 225000 },
+      { month: 'Jun', revenue: 240000 },
+    ],
+    donor_segments: [
+      { name: 'Major Donors', value: 45 },
+      { name: 'Mid-Level', value: 178 },
+      { name: 'Regular', value: 524 },
+      { name: 'New', value: 500 },
+    ],
+    program_breakdown: [
+      { name: 'Education', amount: 850000 },
+      { name: 'Healthcare', amount: 620000 },
+      { name: 'Housing', amount: 480000 },
+      { name: 'Food Security', amount: 380000 },
+      { name: 'Other', amount: 157650 },
+    ],
+  });
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading overview data...</p>
+      </div>
+    );
+  }
+
+  const COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b'];
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const formatNumber = (value) => {
+    return new Intl.NumberFormat('en-US').format(value);
+  };
+
+  return (
+    <div className="analytics-container">
+      <div className="analytics-header">
+        <h2>Overview Dashboard</h2>
+        <p>Welcome back, {user?.full_name}! Here's your organization's performance at a glance.</p>
+      </div>
+
+      {/* Key Metrics Cards */}
+      <div className="metrics-grid">
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <Users size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Total Donors</p>
+            <h3 className="metric-value">{formatNumber(metrics.total_donors)}</h3>
+            <div className={`metric-change ${metrics.donor_growth >= 0 ? 'positive' : 'negative'}`}>
+              {metrics.donor_growth >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+              <span>{Math.abs(metrics.donor_growth)}% from last month</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+            <DollarSign size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Total Revenue (YTD)</p>
+            <h3 className="metric-value">{formatCurrency(metrics.total_revenue)}</h3>
+            <div className={`metric-change ${metrics.revenue_growth >= 0 ? 'positive' : 'negative'}`}>
+              {metrics.revenue_growth >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+              <span>{Math.abs(metrics.revenue_growth)}% from last year</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
+            <Target size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Active Programs</p>
+            <h3 className="metric-value">{metrics.active_programs}</h3>
+            <p className="metric-subtitle">Across all initiatives</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
+            <Calendar size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Beneficiaries Served</p>
+            <h3 className="metric-value">{formatNumber(metrics.beneficiaries_served)}</h3>
+            <p className="metric-subtitle">Total impact to date</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="charts-grid">
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Revenue Trend</h3>
+            <p>Monthly revenue over the past 6 months</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={metrics.monthly_revenue}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="month" stroke="#64748b" />
+                <YAxis stroke="#64748b" tickFormatter={(value) => `$${value / 1000}k`} />
+                <Tooltip
+                  formatter={(value) => formatCurrency(value)}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="url(#colorRevenue)"
+                  strokeWidth={3}
+                  dot={{ fill: '#667eea', r: 5 }}
+                />
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#667eea" />
+                    <stop offset="100%" stopColor="#764ba2" />
+                  </linearGradient>
+                </defs>
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Donor Segments</h3>
+            <p>Distribution by donor category</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={metrics.donor_segments}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {metrics.donor_segments && metrics.donor_segments.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Program Funding Breakdown</h3>
+            <p>Resource allocation across programs</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={metrics.program_breakdown}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" stroke="#64748b" />
+                <YAxis stroke="#64748b" tickFormatter={(value) => `$${value / 1000}k`} />
+                <Tooltip
+                  formatter={(value) => formatCurrency(value)}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Bar dataKey="amount" fill="url(#colorBar)" radius={[8, 8, 0, 0]} />
+                <defs>
+                  <linearGradient id="colorBar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#667eea" />
+                    <stop offset="100%" stopColor="#764ba2" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default OverviewDashboard;

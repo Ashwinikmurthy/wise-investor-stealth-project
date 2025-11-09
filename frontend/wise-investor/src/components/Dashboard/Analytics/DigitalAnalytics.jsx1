@@ -1,0 +1,311 @@
+import React, { useState, useEffect } from 'react';
+import api from '../../../utils/axiosInstance';
+import { useAuth } from '../../../context/AuthContext';
+import {
+  Globe,
+  MousePointer,
+  Eye,
+  Clock,
+  TrendingUp,
+  Smartphone,
+} from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import '../Dashboard.css';
+
+const DigitalAnalytics = () => {
+  const { API_BASE_URL, getOrganizationId } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDigitalAnalytics();
+  }, []);
+
+  const fetchDigitalAnalytics = async () => {
+    try {
+      setLoading(true);
+      
+      // Get organization ID
+      const orgId = getOrganizationId();
+      if (!orgId) {
+        throw new Error('Organization ID not found. Please login again.');
+      }
+      const response = await api.get(`/api/v1/analytics/digital-performance/${orgId}`);
+      setData(response.data);
+    } catch (err) {
+      console.error('Error fetching digital analytics:', err);
+      setData(getMockData());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMockData = () => ({
+    total_visitors: 45720,
+    page_views: 128540,
+    avg_session_duration: 245,
+    conversion_rate: 3.8,
+    traffic_trend: [
+      { date: 'Jun 1', visitors: 1850, sessions: 2420 },
+      { date: 'Jun 8', visitors: 2100, sessions: 2680 },
+      { date: 'Jun 15', visitors: 1920, sessions: 2510 },
+      { date: 'Jun 22', visitors: 2380, sessions: 3050 },
+      { date: 'Jun 29', visitors: 2650, sessions: 3420 },
+    ],
+    traffic_sources: [
+      { source: 'Organic Search', visitors: 18500, percentage: 40.5 },
+      { source: 'Direct', visitors: 12450, percentage: 27.2 },
+      { source: 'Social Media', visitors: 8240, percentage: 18.0 },
+      { source: 'Email', visitors: 4580, percentage: 10.0 },
+      { source: 'Referral', visitors: 1950, percentage: 4.3 },
+    ],
+    device_breakdown: [
+      { device: 'Desktop', users: 21850, percentage: 47.8 },
+      { device: 'Mobile', users: 18920, percentage: 41.4 },
+      { device: 'Tablet', users: 4950, percentage: 10.8 },
+    ],
+    top_pages: [
+      { page: '/donate', views: 24850, avg_time: 185 },
+      { page: '/programs', views: 18420, avg_time: 220 },
+      { page: '/about', views: 15680, avg_time: 145 },
+      { page: '/events', views: 12540, avg_time: 195 },
+      { page: '/volunteer', views: 9850, avg_time: 210 },
+    ],
+    engagement_metrics: [
+      { metric: 'Bounce Rate', value: 42.5, target: 45 },
+      { metric: 'Pages/Session', value: 2.8, target: 3.0 },
+      { metric: 'Avg Session Duration', value: 245, target: 240 },
+      { metric: 'Return Visitors', value: 35.2, target: 30 },
+    ],
+  });
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading digital analytics...</p>
+      </div>
+    );
+  }
+
+  const formatNumber = (value) => {
+    return new Intl.NumberFormat('en-US').format(value);
+  };
+
+  const formatDuration = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}m ${secs}s`;
+  };
+
+  const COLORS = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b'];
+
+  return (
+    <div className="analytics-container">
+      <div className="analytics-header">
+        <h2>Digital Analytics</h2>
+        <p>Website traffic, user behavior, and digital engagement metrics</p>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="metrics-grid">
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <Globe size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Total Visitors</p>
+            <h3 className="metric-value">{formatNumber(data.total_visitors)}</h3>
+            <p className="metric-subtitle">Last 30 days</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
+            <Eye size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Page Views</p>
+            <h3 className="metric-value">{formatNumber(data.page_views)}</h3>
+            <p className="metric-subtitle">Total impressions</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+            <Clock size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Avg Session Duration</p>
+            <h3 className="metric-value">{formatDuration(data.avg_session_duration)}</h3>
+            <p className="metric-subtitle">Time on site</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
+            <MousePointer size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Conversion Rate</p>
+            <h3 className="metric-value">{data.conversion_rate}%</h3>
+            <p className="metric-subtitle">Goal completions</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="charts-grid">
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Traffic Trend</h3>
+            <p>Visitors and sessions over time</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={data.traffic_trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip
+                  formatter={(value) => formatNumber(value)}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="visitors"
+                  stackId="1"
+                  stroke="#667eea"
+                  fill="#667eea"
+                  name="Visitors"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="sessions"
+                  stackId="2"
+                  stroke="#764ba2"
+                  fill="#764ba2"
+                  fillOpacity={0.6}
+                  name="Sessions"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Traffic Sources</h3>
+            <p>Where visitors come from</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={data.traffic_sources}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ source, percentage }) => `${source} ${percentage}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="visitors"
+                >
+                  {data.traffic_sources.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => formatNumber(value)} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Device Breakdown</h3>
+            <p>Visitor distribution by device</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.device_breakdown}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="device" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip
+                  formatter={(value) => formatNumber(value)}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Bar dataKey="users" fill="url(#colorDevice)" radius={[8, 8, 0, 0]} />
+                <defs>
+                  <linearGradient id="colorDevice" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#4facfe" />
+                    <stop offset="100%" stopColor="#00f2fe" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Top Pages</h3>
+            <p>Most visited pages and average time spent</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.top_pages}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="page" stroke="#64748b" />
+                <YAxis yAxisId="left" stroke="#64748b" />
+                <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === 'avg_time' ? `${value}s` : formatNumber(value),
+                    name === 'views' ? 'Page Views' : 'Avg Time',
+                  ]}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Bar yAxisId="left" dataKey="views" fill="#667eea" name="Views" radius={[8, 8, 0, 0]} />
+                <Bar yAxisId="right" dataKey="avg_time" fill="#f093fb" name="Avg Time (s)" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DigitalAnalytics;

@@ -1,0 +1,301 @@
+import React, { useState, useEffect } from 'react';
+import api from '../../../utils/axiosInstance';
+import { useAuth } from '../../../context/AuthContext';
+import {
+  Users,
+  UserPlus,
+  TrendingUp,
+  Heart,
+  Award,
+  DollarSign,
+} from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import '../Dashboard.css';
+
+const DonorLifecycle = () => {
+  const { API_BASE_URL, getOrganizationId } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDonorLifecycleData();
+  }, []);
+
+  const fetchDonorLifecycleData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get organization ID
+      const orgId = getOrganizationId();
+      if (!orgId) {
+        throw new Error('Organization ID not found. Please login again.');
+      }
+      const response = await api.get(`/api/v1/analytics/donor-lifecycle/${orgId}`);
+      setData(response.data);
+    } catch (err) {
+      console.error('Error fetching donor lifecycle data:', err);
+      setData(getMockData());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMockData = () => ({
+    acquisition_rate: 15.3,
+    retention_rate: 78.5,
+    avg_lifetime_value: 4850,
+    donor_churn_rate: 21.5,
+    lifecycle_stages: [
+      { stage: 'Prospect', count: 450 },
+      { stage: 'First-Time', count: 320 },
+      { stage: 'Repeat', count: 280 },
+      { stage: 'Loyal', count: 150 },
+      { stage: 'Champion', count: 47 },
+    ],
+    retention_trend: [
+      { month: 'Jan', retained: 75, churned: 25 },
+      { month: 'Feb', retained: 77, churned: 23 },
+      { month: 'Mar', retained: 76, churned: 24 },
+      { month: 'Apr', retained: 78, churned: 22 },
+      { month: 'May', retained: 79, churned: 21 },
+      { month: 'Jun', retained: 80, churned: 20 },
+    ],
+    ltv_by_segment: [
+      { segment: 'Major Donors', ltv: 45000, donors: 45 },
+      { segment: 'Mid-Level', ltv: 8500, donors: 178 },
+      { segment: 'Regular', ltv: 2400, donors: 524 },
+      { segment: 'New', ltv: 850, donors: 500 },
+    ],
+    acquisition_channels: [
+      { channel: 'Events', donors: 180, cost: 12000 },
+      { channel: 'Digital', donors: 250, cost: 8500 },
+      { channel: 'Direct Mail', donors: 120, cost: 15000 },
+      { channel: 'Referrals', donors: 200, cost: 3000 },
+      { channel: 'Social Media', donors: 150, cost: 6000 },
+    ],
+  });
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading donor lifecycle data...</p>
+      </div>
+    );
+  }
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  return (
+    <div className="analytics-container">
+      <div className="analytics-header">
+        <h2>Donor Lifecycle Analytics</h2>
+        <p>Track acquisition, retention, and lifetime value across donor segments</p>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="metrics-grid">
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <UserPlus size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Acquisition Rate</p>
+            <h3 className="metric-value">{data.acquisition_rate}%</h3>
+            <p className="metric-subtitle">New donors this month</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
+            <Heart size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Retention Rate</p>
+            <h3 className="metric-value">{data.retention_rate}%</h3>
+            <p className="metric-subtitle">Donors retained year-over-year</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+            <Award size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Avg Lifetime Value</p>
+            <h3 className="metric-value">{formatCurrency(data.avg_lifetime_value)}</h3>
+            <p className="metric-subtitle">Per donor</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
+            <TrendingUp size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Churn Rate</p>
+            <h3 className="metric-value">{data.donor_churn_rate}%</h3>
+            <p className="metric-subtitle">Donors lost this period</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="charts-grid">
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Donor Lifecycle Stages</h3>
+            <p>Distribution across the donor journey</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.lifecycle_stages} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis type="number" stroke="#64748b" />
+                <YAxis dataKey="stage" type="category" stroke="#64748b" />
+                <Tooltip
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Bar dataKey="count" fill="url(#colorLifecycle)" radius={[0, 8, 8, 0]} />
+                <defs>
+                  <linearGradient id="colorLifecycle" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#667eea" />
+                    <stop offset="100%" stopColor="#764ba2" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Retention Trend</h3>
+            <p>Retained vs churned donors over time</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={data.retention_trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="month" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="retained"
+                  stackId="1"
+                  stroke="#43e97b"
+                  fill="#43e97b"
+                  name="Retained"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="churned"
+                  stackId="1"
+                  stroke="#f5576c"
+                  fill="#f5576c"
+                  name="Churned"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Lifetime Value by Segment</h3>
+            <p>Average LTV and donor count by segment</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.ltv_by_segment}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="segment" stroke="#64748b" />
+                <YAxis yAxisId="left" stroke="#64748b" tickFormatter={(value) => `$${value / 1000}k`} />
+                <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === 'ltv' ? formatCurrency(value) : value,
+                    name === 'ltv' ? 'Lifetime Value' : 'Donor Count',
+                  ]}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Bar yAxisId="left" dataKey="ltv" fill="#667eea" name="LTV" radius={[8, 8, 0, 0]} />
+                <Bar yAxisId="right" dataKey="donors" fill="#764ba2" name="Donors" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Acquisition Channels Performance</h3>
+            <p>New donors and cost per channel</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.acquisition_channels}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="channel" stroke="#64748b" />
+                <YAxis yAxisId="left" stroke="#64748b" />
+                <YAxis yAxisId="right" orientation="right" stroke="#64748b" tickFormatter={(value) => `$${value / 1000}k`} />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === 'cost' ? formatCurrency(value) : value,
+                    name === 'cost' ? 'Acquisition Cost' : 'New Donors',
+                  ]}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Bar yAxisId="left" dataKey="donors" fill="#4facfe" name="New Donors" radius={[8, 8, 0, 0]} />
+                <Bar yAxisId="right" dataKey="cost" fill="#f093fb" name="Cost" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DonorLifecycle;

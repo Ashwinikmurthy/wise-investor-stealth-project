@@ -1,0 +1,377 @@
+import React, { useState, useEffect } from 'react';
+import api from '../../../utils/axiosInstance';
+import { useAuth } from '../../../context/AuthContext';
+import {
+  Target,
+  Users,
+  TrendingUp,
+  CheckCircle,
+  Heart,
+  Award,
+} from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import '../Dashboard.css';
+
+const ProgramImpact = () => {
+  const { API_BASE_URL, getOrganizationId } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProgramImpactData();
+  }, []);
+
+  const fetchProgramImpactData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get organization ID
+      const orgId = getOrganizationId();
+      if (!orgId) {
+        throw new Error('Organization ID not found. Please login again.');
+      }
+      const response = await api.get(`/api/v1/analytics/program-impact/${orgId}`);
+      setData(response.data);
+    } catch (err) {
+      console.error('Error fetching program impact data:', err);
+      setData(getMockData());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMockData = () => ({
+    total_beneficiaries: 15420,
+    active_programs: 8,
+    program_efficiency: 92.5,
+    impact_score: 8.7,
+    programs: [
+      {
+        name: 'Education Support',
+        beneficiaries: 5240,
+        budget: 850000,
+        utilization: 94,
+        outcomes: 89,
+      },
+      {
+        name: 'Healthcare Access',
+        beneficiaries: 3850,
+        budget: 620000,
+        utilization: 91,
+        outcomes: 92,
+      },
+      {
+        name: 'Housing Assistance',
+        beneficiaries: 2100,
+        budget: 480000,
+        utilization: 88,
+        outcomes: 85,
+      },
+      {
+        name: 'Food Security',
+        beneficiaries: 3250,
+        budget: 380000,
+        utilization: 95,
+        outcomes: 94,
+      },
+      {
+        name: 'Job Training',
+        beneficiaries: 980,
+        budget: 295000,
+        utilization: 89,
+        outcomes: 87,
+      },
+    ],
+    beneficiary_trend: [
+      { month: 'Jan', served: 2250, target: 2500 },
+      { month: 'Feb', served: 2380, target: 2500 },
+      { month: 'Mar', served: 2520, target: 2500 },
+      { month: 'Apr', served: 2450, target: 2600 },
+      { month: 'May', served: 2680, target: 2600 },
+      { month: 'Jun', served: 3140, target: 2600 },
+    ],
+    outcome_metrics: [
+      { metric: 'Service Quality', score: 92 },
+      { metric: 'Beneficiary Satisfaction', score: 88 },
+      { metric: 'Program Efficiency', score: 90 },
+      { metric: 'Impact Duration', score: 85 },
+      { metric: 'Community Reach', score: 87 },
+    ],
+    demographics: [
+      { category: 'Children (0-17)', count: 4850 },
+      { category: 'Young Adults (18-35)', count: 3920 },
+      { category: 'Adults (36-64)', count: 4650 },
+      { category: 'Seniors (65+)', count: 2000 },
+    ],
+    program_costs: [
+      { program: 'Education', cost_per_beneficiary: 162 },
+      { program: 'Healthcare', cost_per_beneficiary: 161 },
+      { program: 'Housing', cost_per_beneficiary: 229 },
+      { program: 'Food Security', cost_per_beneficiary: 117 },
+      { program: 'Job Training', cost_per_beneficiary: 301 },
+    ],
+  });
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading program impact data...</p>
+      </div>
+    );
+  }
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const formatNumber = (value) => {
+    return new Intl.NumberFormat('en-US').format(value);
+  };
+
+  return (
+    <div className="analytics-container">
+      <div className="analytics-header">
+        <h2>Program Impact Analytics</h2>
+        <p>Track beneficiaries served, program outcomes, and social impact metrics</p>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="metrics-grid">
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <Users size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Total Beneficiaries</p>
+            <h3 className="metric-value">{formatNumber(data.total_beneficiaries)}</h3>
+            <p className="metric-subtitle">Served this year</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
+            <Target size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Active Programs</p>
+            <h3 className="metric-value">{data.active_programs}</h3>
+            <p className="metric-subtitle">Across all initiatives</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+            <CheckCircle size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Program Efficiency</p>
+            <h3 className="metric-value">{data.program_efficiency}%</h3>
+            <p className="metric-subtitle">Budget utilization rate</p>
+          </div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-icon" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
+            <Award size={24} />
+          </div>
+          <div className="metric-content">
+            <p className="metric-label">Impact Score</p>
+            <h3 className="metric-value">{data.impact_score}/10</h3>
+            <p className="metric-subtitle">Overall effectiveness rating</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="charts-grid">
+        <div className="chart-card full-width">
+          <div className="chart-header">
+            <h3>Program Performance Overview</h3>
+            <p>Beneficiaries served and budget by program</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.programs}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" stroke="#64748b" />
+                <YAxis yAxisId="left" stroke="#64748b" />
+                <YAxis yAxisId="right" orientation="right" stroke="#64748b" tickFormatter={(value) => `$${value / 1000}k`} />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === 'budget' ? formatCurrency(value) : formatNumber(value),
+                    name === 'beneficiaries' ? 'Beneficiaries' : 'Budget',
+                  ]}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Bar yAxisId="left" dataKey="beneficiaries" fill="#667eea" name="Beneficiaries" radius={[8, 8, 0, 0]} />
+                <Bar yAxisId="right" dataKey="budget" fill="#764ba2" name="Budget" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Beneficiary Trend</h3>
+            <p>Monthly served vs target</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={data.beneficiary_trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="month" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="served"
+                  stroke="#43e97b"
+                  strokeWidth={3}
+                  name="Served"
+                  dot={{ fill: '#43e97b', r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="target"
+                  stroke="#94a3b8"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  name="Target"
+                  dot={{ fill: '#94a3b8', r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Outcome Metrics</h3>
+            <p>Performance across key indicators</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <RadarChart data={data.outcome_metrics}>
+                <PolarGrid stroke="#e2e8f0" />
+                <PolarAngleAxis dataKey="metric" stroke="#64748b" tick={{ fontSize: 12 }} />
+                <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="#64748b" />
+                <Radar
+                  name="Score"
+                  dataKey="score"
+                  stroke="#667eea"
+                  fill="#667eea"
+                  fillOpacity={0.6}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Beneficiary Demographics</h3>
+            <p>Age distribution of served population</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.demographics}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="category" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip
+                  formatter={(value) => formatNumber(value)}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Bar dataKey="count" fill="url(#colorDemo)" radius={[8, 8, 0, 0]} />
+                <defs>
+                  <linearGradient id="colorDemo" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#4facfe" />
+                    <stop offset="100%" stopColor="#00f2fe" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Cost Efficiency</h3>
+            <p>Cost per beneficiary by program</p>
+          </div>
+          <div className="chart-body">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.program_costs} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis type="number" stroke="#64748b" tickFormatter={(value) => `$${value}`} />
+                <YAxis dataKey="program" type="category" stroke="#64748b" />
+                <Tooltip
+                  formatter={(value) => formatCurrency(value)}
+                  contentStyle={{
+                    background: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Bar dataKey="cost_per_beneficiary" fill="url(#colorCost)" radius={[0, 8, 8, 0]} />
+                <defs>
+                  <linearGradient id="colorCost" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#f093fb" />
+                    <stop offset="100%" stopColor="#f5576c" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProgramImpact;
