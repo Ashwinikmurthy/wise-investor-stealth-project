@@ -18,6 +18,7 @@ import DonationPage from './components/DonationPage';
 import RegisterUserRequest from './components/Auth/RegisterUserRequest';
 import UserRegistrationAdmin from './components/Auth/UserRegistrationAdmin';
 import CompleteInvitation from './components/Auth/CompleteInvitation';
+import DonorPortalWithAPI from './components/DonorportalUpdated'
 //import RegisterOrg from './components/Auth/RegisterUpdated'
 import Dashboard from './components/Dashboard/ComprehensiveAnalytics_UTD_colors';
 //import ProtectedRoute from './components/ProtectedRoute';
@@ -37,6 +38,7 @@ function App() {
 	  	    <Route path="/register-donor" element={<RegisterDonor />} />
 	            <Route path="/register-user" element={<RegisterUserRequest />} />
 <Route path="/admin/registration-requests" element={<UserRegistrationAdmin />} />
+	   <Route path="/donor-portal" element={<DonorPortalWithAPI />} />
 	  //<Route path="/register-staff" element={<RegisterStaff />} />
 		    //<Route path="/complete-invitation" element={<CompleteInvitation />} />
 	  <Route path="/donor-portal/donate/:id" element={<DonationPage />} />  {/* ← NEW */}
