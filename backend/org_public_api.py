@@ -90,8 +90,8 @@ async def list_all_organizations(
             org_list.append(OrganizationPublicResponse(
                 id=str(org.id),
                 name=org.name,
-                description=org.description,
-                industry=org.industry,
+                mission=org.mission,
+                #industry=org.industry,
                 website=org.website,
                 city=org.city,
                 state=org.state

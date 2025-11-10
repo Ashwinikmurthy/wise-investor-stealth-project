@@ -68,7 +68,7 @@ const RegisterUserRequest = () => {
 
   const loadOrganizations = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/organizations`);
+      const response = await fetch(`${API_BASE_URL}/api/v1/public/organizations`);
       if (response.ok) {
         const data = await response.json();
         setOrganizations(data);
