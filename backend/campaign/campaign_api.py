@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import uuid
 import re
 
@@ -37,7 +37,7 @@ def calculate_campaign_metrics(campaign: Campaign) -> dict:
 
     # Days remaining
     if campaign.end_date:
-        days_remaining = (campaign.end_date - datetime.utcnow()).days
+        days_remaining = (campaign.end_date - date.today()).days
         metrics['days_remaining'] = max(0, days_remaining)
     else:
         metrics['days_remaining'] = None
@@ -81,7 +81,7 @@ async def create_campaign(
 
     # Add computed metrics
     metrics = calculate_campaign_metrics(campaign)
-    response = CampaignResponse.model_validate(campaign)
+    response = CampaignResponse.model_validate(campaign,from_attributes=True)
     for key, value in metrics.items():
         setattr(response, key, value)
 
@@ -109,7 +109,7 @@ async def list_campaigns(
     responses = []
     for campaign in campaigns:
         metrics = calculate_campaign_metrics(campaign)
-        response = CampaignResponse.model_validate(campaign)
+        response = CampaignResponse.model_validate(campaign,from_attributes=True)
         for key, value in metrics.items():
             setattr(response, key, value)
         responses.append(response)
@@ -137,7 +137,7 @@ async def get_campaign(
 
     # Add computed metrics
     metrics = calculate_campaign_metrics(campaign)
-    response = CampaignResponse.model_validate(campaign)
+    response = CampaignResponse.model_validate(campaign,from_attributes=True)
     for key, value in metrics.items():
         setattr(response, key, value)
 
@@ -175,7 +175,7 @@ async def update_campaign(
 
     # Add computed metrics
     metrics = calculate_campaign_metrics(campaign)
-    response = CampaignResponse.model_validate(campaign)
+    response = CampaignResponse.model_validate(campaign,from_attributes=True)
     for key, value in metrics.items():
         setattr(response, key, value)
 
@@ -235,7 +235,7 @@ async def get_campaign_performance(
     # Calculate days remaining
     days_remaining = None
     if campaign.end_date:
-        days_remaining = max(0, (campaign.end_date - datetime.utcnow()).days)
+        days_remaining = max(0, (campaign.end_date - date.today()).days)
 
     # Calculate daily average
     daily_average = campaign.raised_amount / days_active if days_active > 0 else 0
@@ -289,7 +289,7 @@ async def get_all_campaigns_performance(
         days_active = (datetime.utcnow() - campaign.created_at).days or 1
         days_remaining = None
         if campaign.end_date:
-            days_remaining = max(0, (campaign.end_date - datetime.utcnow()).days)
+            days_remaining = max(0, (campaign.end_date - date.today()).days)
 
         daily_average = campaign.raised_amount / days_active if days_active > 0 else 0
         projected_total = None
@@ -405,7 +405,7 @@ async def get_public_featured_campaigns(
         progress = (campaign.raised_amount / campaign.goal_amount * 100) if campaign.goal_amount > 0 else 0
         days_remaining = None
         if campaign.end_date:
-            days_remaining = max(0, (campaign.end_date - datetime.utcnow()).days)
+            days_remaining = max(0, (campaign.end_date - date.today()).days)
 
         summary = PublicCampaignSummary(
             id=campaign.id,
@@ -457,7 +457,7 @@ async def get_all_public_campaigns(
         progress = (campaign.raised_amount / campaign.goal_amount * 100) if campaign.goal_amount > 0 else 0
         days_remaining = None
         if campaign.end_date:
-            days_remaining = max(0, (campaign.end_date - datetime.utcnow()).days)
+            days_remaining = max(0, (campaign.end_date - date.today()).days)
 
         summary = PublicCampaignSummary(
             id=campaign.id,
@@ -509,7 +509,7 @@ async def get_public_campaign_by_slug(
     progress = (campaign.raised_amount / campaign.goal_amount * 100) if campaign.goal_amount > 0 else 0
     days_remaining = None
     if campaign.end_date:
-        days_remaining = max(0, (campaign.end_date - datetime.utcnow()).days)
+        days_remaining = max(0, (campaign.end_date - date.today()).days)
 
     summary = PublicCampaignSummary(
         id=campaign.id,

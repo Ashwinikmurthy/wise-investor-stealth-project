@@ -13,7 +13,7 @@ from uuid import UUID
 from decimal import Decimal
 from majorgifts.major_gifts_schema import *
 from database import get_db
-from models import Users as User, Donations as Donation, Parties as Party, DonorMeetings as DonorMeeting, MajorGiftOfficer as MajorGiftOfficer,MovesManagementStages as MovesManagementStage, OfficerAnnualTargets as OfficerAnnualTarget, DonorPriorityCache,DonorExclusionTags as DonorExclusionTag
+from models import Users as User, Donations as Donation, Donors as Donor,Parties as Party, DonorMeetings as DonorMeeting, MajorGiftOfficer as MajorGiftOfficer,MovesManagementStages as MovesManagementStage, OfficerAnnualTargets as OfficerAnnualTarget, DonorPriorityCache,DonorExclusionTags as DonorExclusionTag
 from majorgifts.major_gifts_api_part1 import MeetingActivityResponse, verify_organization_access, \
     get_current_fiscal_year, ProductivitySummaryResponse
 
@@ -254,18 +254,11 @@ async def get_meetings_upcoming(
                 MajorGiftOfficer.id == row.officer_id,
                 MajorGiftOfficer.organization_id == organization_id
             ).first()
-            next_meeting = db.query(DonorMeeting.scheduled_date).filter(
-                DonorMeeting.officer_id == row.officer_id,
-                DonorMeeting.organization_id == organization_id,
-                DonorMeeting.scheduled_date >= today,
-                DonorMeeting.scheduled_date.isnot(None)
-            ).order_by(DonorMeeting.scheduled_date.asc()).first()
-            
-            next_meeting_date = next_meeting[0] if next_meeting else None
+
             if officer_info:
                 #user, mgo = officer_info
                 officer_name = f"{officer_info.first_name} {officer_info.last_name}"
-                officer_role = str(officer_info.portfolio_role.value) if officer_info.portfolio_role.value else None
+                officer_role = str(officer_info.portfolio_role) if officer_info.portfolio_role else None
             else:
                 officer_name = "Unknown Officer"
                 officer_role = None
@@ -274,8 +267,7 @@ async def get_meetings_upcoming(
                 officer_id=row.officer_id,
                 officer_name=officer_name,
                 officer_role=officer_role,
-                meetings_count=row.upcoming_meetings_count,
-                next_meeting_date=next_meeting_date
+                meetings_count=row.upcoming_meetings_count
             ))
 
         return response
@@ -290,59 +282,51 @@ async def get_meetings_upcoming(
 # ============================================================================
 # 6. PRODUCTIVITY SUMMARY
 # ============================================================================
-
 @router.get(
     "/productivity/summary",
     response_model=List[ProductivitySummaryResponse],
-    summary="Get officer productivity summary",
-    description="YTD closures vs annual goals by officer"
+    summary="Get officer fundraising productivity",
+    description="YTD closures vs annual goals by major gift officer"
 )
-async def get_productivity_summary(
+async def get_officer_productivity(
         organization_id: UUID = Query(..., description="Organization ID"),
         officer_id: Optional[UUID] = Query(None, description="Filter by specific officer"),
-        fiscal_year: Optional[int] = Query(None, description="Fiscal year (defaults to current)"),
+        fiscal_year: Optional[int] = Query(None, description="Fiscal year (default: current)"),
         db: Session = Depends(get_db),
         current_user: "CurrentUser" = Depends(get_current_user)
 ):
     """
-    Get officer productivity:
-    - YTD closures (count and amount)
-    - Annual goals (count and amount)
-    - Progress percentages
-    - Remaining to goal
+    Get officer productivity metrics using gift goals data.
+    FIXED: Uses gift_goals.current_received_amount for consistency.
     """
     verify_organization_access(organization_id, current_user)
 
     try:
-        # Determine fiscal year
+        # Get fiscal year
         if not fiscal_year:
             fiscal_year = get_current_fiscal_year()
 
-        # Calculate FY start and end dates
-        fy_start = date(fiscal_year, 7, 1)  # Assuming July 1 fiscal year start
-        fy_end = date(fiscal_year + 1, 6, 30)
+        # ============================================================================
+        # FIXED: Use gift_goals data (same as Gift Goals section)
+        # This ensures Officer Performance matches Gift Goals
+        # ============================================================================
 
-        # Get YTD donations (closures) by officer
-        # Join with moves management to get officer assignments
-        donations_query = db.query(
-            MovesManagementStage.officer_id,
-            func.count(Donation.id).label('ytd_closures_count'),
-            func.sum(Donation.amount).label('ytd_closures_amount')
-        ).join(
-            Donation, Donation.party_id == MovesManagementStage.donor_id
+        from models import GiftGoals as GiftGoal
+
+        gift_goals_query = db.query(
+            GiftGoal.officer_id,
+            func.count(GiftGoal.id).label('ytd_closures_count'),
+            func.sum(GiftGoal.current_received_amount).label('ytd_closures_amount')
         ).filter(
-            Donation.organization_id == organization_id,
-            Donation.donation_date >= fy_start,
-            Donation.donation_date <= fy_end,
-            Donation.payment_status == 'completed'
+            GiftGoal.organization_id == organization_id,
+            GiftGoal.status.in_(['active', 'realized'])
         )
 
         if officer_id:
-            donations_query = donations_query.filter(MovesManagementStage.officer_id == officer_id)
+            gift_goals_query = gift_goals_query.filter(GiftGoal.officer_id == officer_id)
 
-        donations_query = donations_query.group_by(MovesManagementStage.officer_id)
-
-        ytd_results = {row.officer_id: row for row in donations_query.all()}
+        gift_goals_query = gift_goals_query.group_by(GiftGoal.officer_id)
+        ytd_results = {row.officer_id: row for row in gift_goals_query.all()}
 
         # Get annual targets
         targets_query = db.query(OfficerAnnualTarget).filter(
@@ -355,12 +339,13 @@ async def get_productivity_summary(
 
         targets = targets_query.all()
 
+        # Build response
         response = []
         for target in targets:
             ytd = ytd_results.get(target.officer_id)
 
             ytd_count = ytd.ytd_closures_count if ytd else 0
-            ytd_amount = float(ytd.ytd_closures_amount or 0) if ytd else 0
+            ytd_amount = float(ytd.ytd_closures_amount or 0) if ytd else 0.0
 
             goal_count = target.target_gift_count
             goal_amount = float(target.target_dollars)
@@ -371,16 +356,19 @@ async def get_productivity_summary(
             remaining_count = max(0, goal_count - ytd_count)
             remaining_amount = max(0, goal_amount - ytd_amount)
 
-            # Get officer info
-            officer_info = db.query(MajorGiftOfficer).filter(
-                MajorGiftOfficer.id == target.officer_id,
-                MajorGiftOfficer.organization_id == organization_id
-            ).first()
+            # Get officer info using raw SQL to avoid enum issues
+            officer_result = db.execute(
+                text("""
+                    SELECT first_name, last_name, portfolio_role::text as role
+                    FROM major_gift_officers 
+                    WHERE id = :officer_id
+                """),
+                {"officer_id": str(target.officer_id)}
+            ).fetchone()
 
-            if officer_info:
-
-                officer_name = f"{officer_info.first_name} {officer_info.last_name}"
-                officer_role = str(officer_info.portfolio_role) if officer_info.portfolio_role else None
+            if officer_result:
+                officer_name = f"{officer_result[0]} {officer_result[1]}"
+                officer_role = officer_result[2]
             else:
                 officer_name = "Unknown Officer"
                 officer_role = None
@@ -406,6 +394,7 @@ async def get_productivity_summary(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving productivity: {str(e)}"
         )
+
 
 
 # ============================================================================
@@ -454,7 +443,7 @@ async def get_donor_opportunities(
             query = query.filter(DonorPriorityCache.donor_level == donor_level)
 
         if officer_id:
-            query = query.filter(DonorPriorityCache.officer_id == officer_id)
+            query = query.filter(DonorPriorityCache.assigned_officer_id == officer_id)
 
         # Apply exclusion tags
         if exclude_tags:
@@ -480,7 +469,7 @@ async def get_donor_opportunities(
         response = []
         for row in results:
             # Get party info
-            party = db.query(Party).filter(Party.id == row.party_id).first()
+            party = db.query(Donor).filter(Donor.id == row.donor_id).first()
             donor_name = f"{party.first_name} {party.last_name}" if party else "Unknown Donor"
 
             # Get officer info

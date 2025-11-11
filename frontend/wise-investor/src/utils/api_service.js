@@ -265,21 +265,59 @@ export const donationAPI = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(donationData),
     });
-
-    if (!response.ok) throw new Error('Failed to create donation');
-    return await response.json();
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to create donation');
+    }
+    
+    const result = await response.json();
+    console.log('Donation created:', result); // Debug log
+    return result;
   },
 
   // Confirm donation
   confirmDonation: async (donationId) => {
-    const response = await fetch(`${API_BASE_URL}/api/public/donations/confirm`, {
+    console.log('Confirming donation with ID:', donationId); // Debug log
+    
+    const response = await fetch(`${API_BASE_URL}/api/public/donations/confirm?donation_id=${donationId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ donation_id: donationId }),
+      headers: { 'Content-Type': 'application/json' }
     });
 
-    if (!response.ok) throw new Error('Failed to confirm donation');
-    return await response.json();
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to confirm donation');
+    }
+    
+    const result = await response.json();
+    console.log('Donation confirmed:', result); // Debug log
+    return result;
+  },
+
+  // Helper: Create and confirm donation in one call
+  createAndConfirmDonation: async (donationData) => {
+    try {
+      // Step 1: Create donation
+      const donation = await donationAPI.createDonation(donationData);
+      
+      // Step 2: Extract donation_id and confirm
+      if (!donation || !donation.donation_id) {
+        throw new Error('Donation created but no donation_id returned');
+      }
+      
+      // Step 3: Confirm the donation
+      const confirmation = await donationAPI.confirmDonation(donation.donation_id);
+      
+      return {
+        success: true,
+        donation,
+        confirmation
+      };
+    } catch (error) {
+      console.error('Donation flow error:', error);
+      throw error;
+    }
   },
 
   // Get donor portal data
@@ -492,137 +530,6 @@ export const utils = {
   },
 };
 
-const getAuthToken = () => {
-  return localStorage.getItem('authToken');
-};
-export const registrationAPI = {
-  
-  // Get available roles
-  getAvailableRoles: async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/v1/roles`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
-
-      if (response.ok) {
-        return await response.json();
-      }
-    } catch (error) {
-      console.error('Error fetching roles:', error);
-    }
-    
-    // Default roles if API fails
-    return [
-      { value: 'staff', label: 'Staff', description: 'General staff member' },
-      { value: 'major_gifts', label: 'Major Gifts Officer', description: 'Manages major donor relationships' },
-      { value: 'events', label: 'Events Coordinator', description: 'Manages events and campaigns' },
-      { value: 'finance', label: 'Finance Manager', description: 'Handles financial operations' },
-      { value: 'admin', label: 'Administrator', description: 'Full administrative access' }
-    ];
-  },
-
-  // Register user - CORRECT ENDPOINT: /api/v1/auth/register
-  registerUser: async (userData) => {
-    try {
-      const response = await fetch(`${API_URL}/api/v1/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
-        },
-        body: JSON.stringify(userData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.message || 'Registration failed');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error registering user:', error);
-      throw error;
-    }
-  },
-
-  // Send invitation email - CORRECT ENDPOINT: /api/v1/auth/register
-  // Same endpoint, but with send_invitation_email flag
-  inviteUser: async (invitationData) => {
-    try {
-      const response = await fetch(`${API_URL}/api/v1/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
-        },
-        body: JSON.stringify({
-          ...invitationData,
-          send_invitation_email: true
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.message || 'Failed to send invitation');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error sending invitation:', error);
-      throw error;
-    }
-  },
-
-  // Register donor (passwordless) - typically different endpoint
-  registerDonor: async (donorData) => {
-    try {
-      const response = await fetch(`${API_URL}/api/v1/registration/donor`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(donorData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.message || 'Donor registration failed');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error registering donor:', error);
-      throw error;
-    }
-  },
-
-  // Register organization
-  registerOrganization: async (orgData) => {
-    try {
-      const response = await fetch(`${API_URL}/api/v1/registration/organization`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orgData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.message || 'Organization registration failed');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error registering organization:', error);
-      throw error;
-    }
-  }
-};
 export default {
   auth: authAPI,
   users: userAPI,

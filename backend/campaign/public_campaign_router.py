@@ -18,6 +18,7 @@ from models import (
     Campaigns as Campaign,
     Organizations as Organization,
     Parties as Party,
+    Donors as Donor,
     Donations as Donation
 )
 # Updated import path - adjust to match your actual schema file location
@@ -98,9 +99,10 @@ async def get_public_campaigns(
         ).scalar() or Decimal(0)
 
         # Count unique donors
-        donor_count = db.query(func.count(func.distinct(Donation.party_id))).filter(
+        donor_count = db.query(func.count(func.distinct(Donation.donor_id))).filter(
             Donation.campaign_id == campaign.id,
-            Donation.payment_status == 'completed'
+            Donation.payment_status == 'completed',
+            Donation.donor_id.isnot(None)
         ).scalar() or 0
 
         # Calculate progress percentage
@@ -189,9 +191,10 @@ async def get_public_campaign_detail(
         Donation.payment_status == 'completed'
     ).scalar() or Decimal(0)
 
-    donor_count = db.query(func.count(func.distinct(Donation.party_id))).filter(
+    donor_count = db.query(func.count(func.distinct(Donation.donor_id))).filter(
         Donation.campaign_id == campaign.id,
-        Donation.payment_status == 'completed'
+        Donation.payment_status == 'completed',
+        Donation.donor_id.isnot(None)
     ).scalar() or 0
 
     progress = (
@@ -524,9 +527,9 @@ async def lookup_donor(
     Simplified version without authentication
     """
 
-    party = db.query(Party).filter(Party.email == lookup.email).first()
+    donor = db.query(Donor).filter(Donor.email == lookup.email).first()
 
-    if not party:
+    if not donor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Donor not found"
@@ -539,27 +542,27 @@ async def lookup_donor(
         func.min(Donation.donation_date).label('first_donation'),
         func.max(Donation.donation_date).label('last_donation')
     ).filter(
-        Donation.party_id == party.id,
+        Donation.donor_id == donor.id,
         Donation.payment_status == 'completed'
     ).first()
 
     return DonorProfileResponse(
-        id=party.id,
-        email=party.email,
-        full_name=party.full_name,
-        display_name=party.display_name,
-        phone=party.phone,
+        id=donor.id,
+        email=donor.email,
+        full_name=f"{donor.first_name or ''} {donor.last_name or ''}".strip(),
+        display_name=donor.first_name or f"{donor.first_name or ''} {donor.last_name or ''}".strip(),
+        phone=donor.phone,
         total_donated=donation_stats.total if donation_stats else Decimal(0),
         donation_count=donation_stats.count if donation_stats else 0,
         first_donation_date=donation_stats.first_donation if donation_stats else None,
         last_donation_date=donation_stats.last_donation if donation_stats else None,
-        created_at=party.created_at
+        created_at=donor.created_at
     )
 
 
-@router.get("/donor/{party_id}/dashboard", response_model=DonorDashboardResponse)
+@router.get("/donor/{donor_id}/dashboard", response_model=DonorDashboardResponse)
 async def get_donor_dashboard(
-        party_id: uuid.UUID,
+        donor_id: uuid.UUID,
         db: Session = Depends(get_db)
 ):
     """
@@ -567,9 +570,9 @@ async def get_donor_dashboard(
     Simplified version without authentication
     """
 
-    party = db.query(Party).filter(Party.id == party_id).first()
+    donor = db.query(Donor).filter(Donor.id == donor_id).first()
 
-    if not party:
+    if not donor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Donor not found"
@@ -582,7 +585,7 @@ async def get_donor_dashboard(
         func.min(Donation.donation_date).label('first_donation'),
         func.max(Donation.donation_date).label('last_donation')
     ).filter(
-        Donation.party_id == party.id,
+        Donation.donor_id == donor.id,
         Donation.payment_status == 'completed'
     ).first()
 
@@ -596,7 +599,7 @@ async def get_donor_dashboard(
     ).outerjoin(
         Organization, Donation.organization_id == Organization.id
     ).filter(
-        Donation.party_id == party.id
+        Donation.donor_id == donor.id
     ).order_by(desc(Donation.donation_date)).limit(10).all()
 
     recent_donations = [
@@ -616,27 +619,27 @@ async def get_donor_dashboard(
 
     # Count unique organizations and campaigns
     orgs_supported = db.query(func.count(func.distinct(Donation.organization_id))).filter(
-        Donation.party_id == party.id,
+        Donation.donor_id == donor.id,
         Donation.payment_status == 'completed'
     ).scalar() or 0
 
     campaigns_supported = db.query(func.count(func.distinct(Donation.campaign_id))).filter(
-        Donation.party_id == party.id,
+        Donation.donor_id == donor.id,
         Donation.payment_status == 'completed',
         Donation.campaign_id.isnot(None)
     ).scalar() or 0
 
     profile = DonorProfileResponse(
-        id=party.id,
-        email=party.email,
-        full_name=party.full_name,
-        display_name=party.display_name,
-        phone=party.phone,
+        id=donor.id,
+        email=donor.email,
+        full_name=f"{donor.first_name or ''} {donor.last_name or ''}".strip(),
+        display_name=donor.first_name or f"{donor.first_name or ''} {donor.last_name or ''}".strip(),
+        phone=donor.phone,
         total_donated=donation_stats.total if donation_stats else Decimal(0),
         donation_count=donation_stats.count if donation_stats else 0,
         first_donation_date=donation_stats.first_donation if donation_stats else None,
         last_donation_date=donation_stats.last_donation if donation_stats else None,
-        created_at=party.created_at
+        created_at=donor.created_at
     )
 
     return DonorDashboardResponse(

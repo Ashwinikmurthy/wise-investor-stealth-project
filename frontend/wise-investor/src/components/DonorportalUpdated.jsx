@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Heart, User, LogIn, UserPlus, DollarSign, Calendar,
   Gift, TrendingUp, Building, ArrowLeft, Check, Clock,
@@ -32,8 +32,9 @@ const DonorPortal = () => {
   const [lookupEmail, setLookupEmail] = useState('');
   const [donationForm, setDonationForm] = useState({
     amount: '',
-    donor_email: '',
-    donor_full_name: '',
+    email: '',  // Changed from donor_email to match backend
+    first_name: '',  // Changed from donor_full_name - backend requires separate names
+    last_name: '',   // New field required by backend
     donor_phone: '',
     address_line1: '',
     city: '',
@@ -47,6 +48,11 @@ const DonorPortal = () => {
     dedication_name: '',
     notes: ''
   });
+
+  // Memoized form update function to prevent component recreation
+  const updateFormField = useCallback((field, value) => {
+    setDonationForm(prev => ({ ...prev, [field]: value }));
+  }, []);
 
   useEffect(() => {
     // Check if donor is logged in (has partyId)
@@ -150,8 +156,9 @@ const DonorPortal = () => {
         campaign_id: selectedCampaign.id,
         amount: parseFloat(donationForm.amount),
         currency: 'USD',
-        donor_email: donationForm.donor_email,
-        donor_full_name: donationForm.donor_full_name,
+        email: donationForm.email,  // Changed from donor_email
+        first_name: donationForm.first_name,  // Changed from donor_full_name
+        last_name: donationForm.last_name,   // New field
         donor_phone: donationForm.donor_phone || null,
         address_line1: donationForm.address_line1 || null,
         city: donationForm.city || null,
@@ -170,13 +177,13 @@ const DonorPortal = () => {
       const donation = await donationAPI.createDonation(donationData);
 
       // Confirm the donation
-      const confirmation = await donationAPI.confirmDonation(donation.id);
+      const confirmation = await donationAPI.confirmDonation(donation.donation_id);
 
       if (confirmation.success) {
         setSuccess(`Thank you for your donation! Transaction ID: ${confirmation.transaction_id}`);
 
         // Store donor info for future lookup
-        localStorage.setItem('donor_email', donationForm.donor_email);
+        localStorage.setItem('donor_email', donationForm.email);
 
         // Reset form amount and notes only
         setDonationForm({
@@ -289,7 +296,7 @@ const DonorPortal = () => {
   );
 
   // Donate View
-  const DonateView = () => {
+  const DonateView = React.memo(() => {
     if (!selectedCampaign) return null;
 
     return (
@@ -407,27 +414,42 @@ const DonorPortal = () => {
               {/* Donor Information */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Full Name *</label>
+                  <label className="block text-sm font-semibold mb-2">First Name *</label>
                   <input
                     type="text"
+                    name="first_name"
                     required
-                    value={donationForm.donor_full_name}
-                    onChange={(e) => setDonationForm({...donationForm, donor_full_name: e.target.value})}
+                    value={donationForm.first_name}
+                    onChange={(e) => updateFormField('first_name', e.target.value)}
                     className="w-full px-4 py-3 border-2 rounded-xl focus:border-orange-500 focus:outline-none"
-                    placeholder="John Doe"
+                    placeholder="John"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Email *</label>
+                  <label className="block text-sm font-semibold mb-2">Last Name *</label>
                   <input
-                    type="email"
+                    type="text"
+                    name="last_name"
                     required
-                    value={donationForm.donor_email}
-                    onChange={(e) => setDonationForm({...donationForm, donor_email: e.target.value})}
+                    value={donationForm.last_name}
+                    onChange={(e) => updateFormField('last_name', e.target.value)}
                     className="w-full px-4 py-3 border-2 rounded-xl focus:border-orange-500 focus:outline-none"
-                    placeholder="john@example.com"
+                    placeholder="Doe"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2">Email *</label>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  value={donationForm.email}
+                  onChange={(e) => updateFormField('email', e.target.value)}
+                  className="w-full px-4 py-3 border-2 rounded-xl focus:border-orange-500 focus:outline-none"
+                  placeholder="john@example.com"
+                />
               </div>
 
               <div>
@@ -527,10 +549,12 @@ const DonorPortal = () => {
               <div>
                 <label className="block text-sm font-semibold mb-2">Dedication (Optional)</label>
                 <select
+                  name="dedication_type"
                   value={donationForm.dedication_type || ''}
                   onChange={(e) => setDonationForm({
                     ...donationForm,
-                    dedication_type: e.target.value || null
+                    dedication_type: e.target.value || null,
+                    dedication_name: e.target.value ? donationForm.dedication_name : ''  // Clear name if no dedication
                   })}
                   className="w-full px-4 py-3 border-2 rounded-xl focus:border-orange-500 focus:outline-none mb-3"
                 >
@@ -538,23 +562,27 @@ const DonorPortal = () => {
                   <option value="in_honor">In Honor Of</option>
                   <option value="in_memory">In Memory Of</option>
                 </select>
-                {donationForm.dedication_type && (
-                  <input
-                    type="text"
-                    value={donationForm.dedication_name}
-                    onChange={(e) => setDonationForm({...donationForm, dedication_name: e.target.value})}
-                    className="w-full px-4 py-3 border-2 rounded-xl focus:border-orange-500 focus:outline-none"
-                    placeholder="Enter name"
-                  />
-                )}
+                <input
+                  type="text"
+                  name="dedication_name"
+                  value={donationForm.dedication_name}
+                  onChange={(e) => updateFormField('dedication_name', e.target.value)}
+                  className="w-full px-4 py-3 border-2 rounded-xl focus:border-orange-500 focus:outline-none transition-opacity"
+                  style={{
+                    display: donationForm.dedication_type ? 'block' : 'none'
+                  }}
+                  placeholder="Enter name"
+                  disabled={!donationForm.dedication_type}
+                />
               </div>
 
               {/* Notes */}
               <div>
                 <label className="block text-sm font-semibold mb-2">Notes (Optional)</label>
                 <textarea
+                  name="notes"
                   value={donationForm.notes}
-                  onChange={(e) => setDonationForm({...donationForm, notes: e.target.value})}
+                  onChange={(e) => updateFormField('notes', e.target.value)}
                   className="w-full px-4 py-3 border-2 rounded-xl focus:border-orange-500 focus:outline-none"
                   rows="3"
                   placeholder="Any special instructions or notes..."
@@ -600,7 +628,7 @@ const DonorPortal = () => {
         </div>
       </div>
     );
-  };
+  });
 
   // Donor Lookup View
   const LookupView = () => (
@@ -869,10 +897,10 @@ const DonorPortal = () => {
 
       {/* Content */}
       <div className="min-h-screen">
-        {activeView === 'campaigns' && <CampaignsView />}
-        {activeView === 'donate' && <DonateView />}
-        {activeView === 'lookup' && <LookupView />}
-        {activeView === 'dashboard' && <DashboardView />}
+        {activeView === 'campaigns' && <CampaignsView key="campaigns-view" />}
+        {activeView === 'donate' && <DonateView key="donate-view" />}
+        {activeView === 'lookup' && <LookupView key="lookup-view" />}
+        {activeView === 'dashboard' && <DashboardView key="dashboard-view" />}
       </div>
     </div>
   );

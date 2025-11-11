@@ -6,20 +6,20 @@ from enum import Enum
 
 # Enums
 class CampaignStatus(str, Enum):
-    DRAFT = "DRAFT"
-    ACTIVE = "ACTIVE"
-    PAUSED = "PAUSED"
-    COMPLETED = "COMPLETED"
-    ARCHIVED = "ARCHIVED"
+    DRAFT = "draft"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    ARCHIVED = "archived"
 
 class CampaignType(str, Enum):
-    GENERAL = "GENERAL"
-    PROJECT = "PROJECT"
-    EMERGENCY = "EMERGENCY"
-    CAPITAL = "CAPITAL"
-    ENDOWMENT = "ENDOWMENT"
-    ANNUAL = "ANNUAL"
-    MONTHLY_GIVING = "MONTHLY_GIVING"
+    GENERAL = "general"
+    PROJECT = "project"
+    EMERGENCY = "emergency"
+    CAPITAL = "capital"
+    ENDOWMENT = "endowment"
+    ANNUAL = "annual"
+    MONTHLY_GIVING = "monthly_giving"
 
 class EventStatus(str, Enum):
     DRAFT = "draft"

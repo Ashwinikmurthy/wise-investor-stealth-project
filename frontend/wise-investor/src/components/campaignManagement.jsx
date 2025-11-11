@@ -7,6 +7,7 @@ import {
   ArrowUp, ArrowDown, Star, Heart, ChevronLeft, X, Upload,
   Camera
 } from 'lucide-react';
+import CampaignAnalytics from './campaignAnalytics';
 
 // UT Dallas Brand Colors
 const colors = {
@@ -57,7 +58,7 @@ const CampaignManagement = () => {
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [stats, setStats] = useState(null);
-
+  const [showAnalytics, setShowAnalytics] = useState(false);
   // Image upload states
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -67,15 +68,17 @@ const CampaignManagement = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category: '',
+    campaign_type: '',  // Changed from category
     goal_amount: '',
     start_date: '',
     end_date: '',
     image_url: '',
     impact_statement: '',
-    featured: false,
-    allow_anonymous: true,
-    allow_recurring: true
+    is_featured: false,  // Changed from featured
+    is_public: true,
+    status: 'active',
+    allow_anonymous_donations: true,  // Changed from allow_anonymous
+    allow_recurring_donations: true   // Changed from allow_recurring
   });
 
   // Categories for campaigns
@@ -111,7 +114,7 @@ const CampaignManagement = () => {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/?organization_id=${organizationId}&skip=0&limit=100`, {
+      const response = await fetch(`${API_BASE_URL}/api/campaigns?skip=0&limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -136,7 +139,7 @@ const CampaignManagement = () => {
       const organizationId = getOrganizationId();
       if (!token || !organizationId) return;
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/organization/stats`, {
+      const response = await fetch(`${API_BASE_URL}/api/campaigns/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -240,6 +243,25 @@ const CampaignManagement = () => {
         return;
       }
 
+      // Validate required fields
+      if (!formData.name || formData.name.trim() === '') {
+        setError('Campaign name is required');
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.campaign_type) {
+        setError('Please select a campaign type');
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.goal_amount || parseFloat(formData.goal_amount) <= 0) {
+        setError('Please enter a valid goal amount');
+        setLoading(false);
+        return;
+      }
+
       let imageUrl = formData.image_url;
 
       // Upload image if a file was selected
@@ -256,12 +278,25 @@ const CampaignManagement = () => {
         setUploadingImage(false);
       }
 
+      // Prepare campaign data with proper date handling
       const campaignData = {
-        ...formData,
-        image_url: imageUrl
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        campaign_type: formData.campaign_type,
+        goal_amount: parseFloat(formData.goal_amount),
+        start_date: formData.start_date || null,  // Send null if empty
+        end_date: formData.end_date || null,      // Send null if empty
+        image_url: imageUrl || null,
+        impact_statement: formData.impact_statement.trim() || null,
+        is_featured: formData.is_featured,
+        is_public: formData.is_public,
+        status: formData.status,
+        allow_anonymous_donations: formData.allow_anonymous_donations,
+        allow_recurring_donations: formData.allow_recurring_donations
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/`, {
+      // Fixed API endpoint - removed /v1 and added /api/campaigns
+      const response = await fetch(`${API_BASE_URL}/api/campaigns`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -270,7 +305,11 @@ const CampaignManagement = () => {
         body: JSON.stringify(campaignData)
       });
 
-      if (!response.ok) throw new Error('Failed to create campaign');
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.detail || 'Failed to create campaign');
+      }
 
       const newCampaign = await response.json();
       setCampaigns([newCampaign, ...campaigns]);
@@ -279,7 +318,7 @@ const CampaignManagement = () => {
       resetForm();
       loadCampaignStats();
     } catch (err) {
-      setError('Failed to create campaign. Please try again.');
+      setError(err.message || 'Failed to create campaign. Please try again.');
       console.error('Error creating campaign:', err);
     } finally {
       setLoading(false);
@@ -309,12 +348,24 @@ const CampaignManagement = () => {
         setUploadingImage(false);
       }
 
+      // Prepare campaign data with proper data types
       const campaignData = {
-        ...formData,
-        image_url: imageUrl
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        campaign_type: formData.campaign_type,
+        goal_amount: parseFloat(formData.goal_amount),
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
+        image_url: imageUrl || null,
+        impact_statement: formData.impact_statement.trim() || null,
+        is_featured: formData.is_featured,
+        is_public: formData.is_public,
+        status: formData.status,
+        allow_anonymous_donations: formData.allow_anonymous_donations,
+        allow_recurring_donations: formData.allow_recurring_donations
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${selectedCampaign.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/campaigns/${selectedCampaign.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -323,7 +374,11 @@ const CampaignManagement = () => {
         body: JSON.stringify(campaignData)
       });
 
-      if (!response.ok) throw new Error('Failed to update campaign');
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.detail || 'Failed to update campaign');
+      }
 
       const updatedCampaign = await response.json();
       setCampaigns(campaigns.map(c => c.id === selectedCampaign.id ? updatedCampaign : c));
@@ -333,7 +388,7 @@ const CampaignManagement = () => {
       resetForm();
       loadCampaignStats();
     } catch (err) {
-      setError('Failed to update campaign. Please try again.');
+      setError(err.message || 'Failed to update campaign. Please try again.');
       console.error('Error updating campaign:', err);
     } finally {
       setLoading(false);
@@ -347,7 +402,7 @@ const CampaignManagement = () => {
 
     try {
       const token = localStorage.getItem('access_token');
-      const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/${campaignId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/campaigns/${campaignId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -370,15 +425,17 @@ const CampaignManagement = () => {
     setFormData({
       name: '',
       description: '',
-      category: '',
+      campaign_type: '',
       goal_amount: '',
       start_date: '',
       end_date: '',
       image_url: '',
       impact_statement: '',
-      featured: false,
-      allow_anonymous: true,
-      allow_recurring: true
+      is_featured: false,
+      is_public: true,
+      status: 'active',
+      allow_anonymous_donations: true,
+      allow_recurring_donations: true
     });
     setImageFile(null);
     setImagePreview(null);
@@ -391,17 +448,19 @@ const CampaignManagement = () => {
   const openEditModal = (campaign) => {
     setSelectedCampaign(campaign);
     setFormData({
-      title: campaign.name,
-      description: campaign.description,
-      category: campaign.category,
+      name: campaign.name,
+      description: campaign.description || '',
+      campaign_type: campaign.campaign_type || '',
       goal_amount: campaign.goal_amount,
-      start_date: campaign.start_date,
-      end_date: campaign.end_date,
+      start_date: campaign.start_date || '',
+      end_date: campaign.end_date || '',
       image_url: campaign.image_url || '',
       impact_statement: campaign.impact_statement || '',
-      featured: campaign.featured || false,
-      allow_anonymous: campaign.allow_anonymous !== false,
-      allow_recurring: campaign.allow_recurring !== false
+      is_featured: campaign.is_featured || false,
+      is_public: campaign.is_public !== false,
+      status: campaign.status || 'active',
+      allow_anonymous_donations: campaign.allow_anonymous_donations !== false,
+      allow_recurring_donations: campaign.allow_recurring_donations !== false
     });
     setImagePreview(campaign.image_url || null);
     setShowEditModal(true);
@@ -418,7 +477,7 @@ const CampaignManagement = () => {
   // Calculate campaign progress
   const getCampaignProgress = (campaign) => {
     if (!campaign.goal_amount) return 0;
-    const raised = campaign.total_raised || 0;
+    const raised = campaign.raised_amount || 0;
     return Math.min((raised / campaign.goal_amount) * 100, 100);
   };
 
@@ -826,7 +885,7 @@ const CampaignManagement = () => {
                       fontWeight: '600'
                     }}>
                       <span style={{ color: colors.primary }}>
-                        ${(campaign.total_raised || 0).toLocaleString()}
+                        ${(campaign.raised_amount || 0).toLocaleString()}
                       </span>
                       <span style={{ color: colors.gray[600] }}>
                         ${(campaign.goal_amount || 0).toLocaleString()}
@@ -882,7 +941,7 @@ const CampaignManagement = () => {
                     }}>
                       <Calendar size={16} style={{ color: colors.gray[400] }} />
                       <span style={{ fontSize: '14px', color: colors.gray[600] }}>
-                        {campaign.days_left || 0} days left
+                        {campaign.days_remaining || 0} days left
                       </span>
                     </div>
                   </div>
@@ -892,6 +951,39 @@ const CampaignManagement = () => {
                     display: 'flex',
                     gap: '8px'
                   }}>
+		    <button
+  onClick={() => {
+    setSelectedCampaign(campaign);
+    setShowAnalytics(true);
+  }}
+  style={{
+    padding: '10px 16px',
+    background: colors.white,
+    color: colors.primary,
+    border: `2px solid ${colors.primary}`,
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    transition: 'all 0.2s'
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.background = colors.primary;
+    e.currentTarget.style.color = colors.white;
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = colors.white;
+    e.currentTarget.style.color = colors.primary;
+  }}
+  title="View Campaign Analytics"
+>
+  <BarChart3 size={18} />
+  Analytics
+</button>
+
                     <button
                       onClick={() => openEditModal(campaign)}
                       style={{
@@ -938,6 +1030,101 @@ const CampaignManagement = () => {
           </div>
         )}
       </div>
+
+      {/* Analytics View Modal */}
+      {showAnalytics && selectedCampaign && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: colors.white,
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '1400px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            position: 'relative'
+          }}>
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setShowAnalytics(false);
+                setSelectedCampaign(null);
+              }}
+              style={{
+                position: 'sticky',
+                top: '20px',
+                right: '20px',
+                float: 'right',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                border: 'none',
+                background: colors.gray[100],
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = colors.danger;
+                e.currentTarget.querySelector('svg').style.color = colors.white;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = colors.gray[100];
+                e.currentTarget.querySelector('svg').style.color = colors.gray[600];
+              }}
+            >
+              <X size={20} color={colors.gray[600]} />
+            </button>
+
+            {/* Header */}
+            <div style={{
+              padding: '32px',
+              borderBottom: `2px solid ${colors.gray[100]}`
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <BarChart3 size={32} color={colors.primary} />
+                <div>
+                  <h2 style={{
+                    margin: '0 0 4px 0',
+                    fontSize: '24px',
+                    fontWeight: '700',
+                    color: colors.gray[800]
+                  }}>
+                    Campaign Analytics
+                  </h2>
+                  <p style={{
+                    margin: 0,
+                    fontSize: '16px',
+                    color: colors.gray[600]
+                  }}>
+                    {selectedCampaign.name}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Analytics Component */}
+            <CampaignAnalytics
+              campaignId={selectedCampaign.id}
+              organizationId={getOrganizationId()}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       {(showCreateModal || showEditModal) && (
@@ -1082,8 +1269,8 @@ const CampaignManagement = () => {
                       Category *
                     </label>
                     <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({...formData, category: e.target.value})}
+                      value={formData.campaign_type}
+                      onChange={(e) => setFormData({...formData, campaign_type: e.target.value})}
                       style={{
                         width: '100%',
                         padding: '12px 14px',
@@ -1357,8 +1544,8 @@ const CampaignManagement = () => {
                   }}>
                     <input
                       type="checkbox"
-                      checked={formData.featured}
-                      onChange={(e) => setFormData({...formData, featured: e.target.checked})}
+                      checked={formData.is_featured}
+                      onChange={(e) => setFormData({...formData, is_featured: e.target.checked})}
                       style={{
                         width: '18px',
                         height: '18px',
@@ -1382,8 +1569,8 @@ const CampaignManagement = () => {
                   }}>
                     <input
                       type="checkbox"
-                      checked={formData.allow_anonymous}
-                      onChange={(e) => setFormData({...formData, allow_anonymous: e.target.checked})}
+                      checked={formData.allow_anonymous_donations}
+                      onChange={(e) => setFormData({...formData, allow_anonymous_donations: e.target.checked})}
                       style={{
                         width: '18px',
                         height: '18px',
@@ -1407,8 +1594,8 @@ const CampaignManagement = () => {
                   }}>
                     <input
                       type="checkbox"
-                      checked={formData.allow_recurring}
-                      onChange={(e) => setFormData({...formData, allow_recurring: e.target.checked})}
+                      checked={formData.allow_recurring_donations}
+                      onChange={(e) => setFormData({...formData, allow_recurring_donations: e.target.checked})}
                       style={{
                         width: '18px',
                         height: '18px',

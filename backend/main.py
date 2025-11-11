@@ -23,9 +23,11 @@ from org_public_api import router as puborgrouter
 from Donation.donation_router import router as donations_org_router
 from Donation.programs_router import router as programsrouter
 from events.events_api import router as events_router
+from campaign.campaign_analytics import router as campaign_analytics_router
 #from user_management.registration_router import router as reg_router
 from user_management.user_registration_api import router as reg_router
 #from majorgifts.major_gifts_main_router import major_gifts_router as majorgiftsrouter
+from majorgifts.highImpactTargets import router as high_impact_router
 from majorgifts.major_gifts_api_part1 import router as part1router
 from majorgifts.major_gifts_api_part2 import router as part2router
 from majorgifts.major_gifts_api_part3 import router as part3router
@@ -159,6 +161,8 @@ app.include_router(superadmin_router)
 app.include_router(user_management_router)
 app.include_router(events_router)
 app.include_router(analytics_router)
+app.include_router(high_impact_router)
+app.include_router(campaign_analytics_router)
 app.include_router(donor_router)
 app.include_router(extra_router)
 app.include_router(campaign_router)

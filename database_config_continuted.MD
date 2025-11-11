@@ -1614,6 +1614,4 @@ X-RateLimit-Reset: 1699451200
 
 ---
 
-**End of API Documentation**
 
-This completes the comprehensive API reference for Wise Investor, covering all endpoints from authentication through webhooks and rate limiting.
