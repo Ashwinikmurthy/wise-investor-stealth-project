@@ -14,6 +14,8 @@ from enum import Enum
 import jwt
 from jwt import PyJWTError, ExpiredSignatureError
 import bcrypt
+import hashlib
+from passlib.context import CryptContext
 
 from database import get_db
 from models import Organizations as Organization, Users as User
@@ -157,11 +159,19 @@ def verify_org_admin(user: User, organization_id: UUID, db: Session) -> None:
         pass
 
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
 def hash_password(password: str) -> str:
-    """Hash password using bcrypt"""
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed.decode('utf-8')
+    """
+    Hash password using SHA256 + passlib to match existing system.
+    This ensures new users can login with the same verify_password function.
+    """
+    # First: Hash with SHA256 (matches your existing system)
+    password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+
+    # Second: Hash with passlib (matches your existing system)
+    return pwd_context.hash(password_hash)
 
 
 # =====================================================================
@@ -344,6 +354,9 @@ async def approve_registration_request(
     new_user = User(
         id=uuid4(),
         email=request_record.email,
+        first_name=request_record.first_name,
+        last_name=request_record.last_name,
+        role=request_record.role,
         full_name=f"{request_record.first_name} {request_record.last_name}",
         password_hash=request_record.password_hash,  # Already hashed
         organization_id=request_record.organization_id,

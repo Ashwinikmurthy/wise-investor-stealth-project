@@ -17,7 +17,7 @@ import SmartCheckout from './SmartCheckout';
 import AdminCreateStaff from './Auth/AdminCreateStaff';
 import LandingPage from './EnhancedLandingPageAfterLogin';
 import EventManagement from './Eventmanagement'; // ✅ NEW: Full Event Management
-import HighImpactTargetsDashboard from './highTargetImpact';
+//import HighImpactTargetsDashboard from './highTargetImpact';
 // UT Dallas Brand Colors
 const colors = {
   primary: '#e87500',      // UT Dallas Orange
@@ -88,14 +88,6 @@ const MainApplication = () => {
       color: colors.secondary,
       component: <MajorGiftsDashboardComplete />
     },
-	  {
-  id: 'high-impact-targets',
-  label: 'High Impact Targets',
-  icon: Sparkles,
-  description: 'AI-powered prospect prioritization and scoring',
-  color: colors.primary,
-  component: <HighImpactTargetsDashboard organizationId={user?.organization_id} />
-},
     {
       id: 'campaigns',
       label: 'Campaign Pages',
