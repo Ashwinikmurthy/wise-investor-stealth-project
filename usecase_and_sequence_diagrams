@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wise Investor Platform - Use Case & Sequence Diagrams</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+        
+        .diagram-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .subsection-title {
+            font-size: 1.5rem;
+            color: #555;
+            margin: 30px 0 20px 0;
+            padding-left: 10px;
+            border-left: 4px solid #764ba2;
+        }
+        
+        .diagram-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .description {
+            color: #666;
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        .nav-menu {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .nav-menu h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .nav-menu ul {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+        
+        .nav-menu a {
+            color: #667eea;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            display: block;
+            transition: all 0.3s;
+        }
+        
+        .nav-menu a:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ Wise Investor Platform</h1>
+            <p>Comprehensive Use Case and Sequence Diagrams</p>
+        </div>
+
+        <div class="nav-menu">
+            <h3>📋 Quick Navigation</h3>
+            <ul>
+                <li><a href="#donor-management">Donor Management</a></li>
+                <li><a href="#campaign-management">Campaign Management</a></li>
+                <li><a href="#analytics">Analytics & Reporting</a></li>
+                <li><a href="#major-gifts">Major Gifts Management</a></li>
+                <li><a href="#user-management">User & Role Management</a></li>
+                <li><a href="#financial">Financial Management</a></li>
+                <li><a href="#communication">Communication Hub</a></li>
+                <li><a href="#events">Events Management</a></li>
+            </ul>
+        </div>
+
+        <!-- Donor Management Section -->
+        <div class="diagram-section" id="donor-management">
+            <h2 class="section-title">1. Donor Management System</h2>
+            
+            <h3 class="subsection-title">Use Case Diagram</h3>
+            <p class="description">Complete donor lifecycle management from acquisition to retention</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TB
+                        subgraph "Donor Management System"
+                            UC1[Create Donor Profile]
+                            UC2[Update Donor Information]
+                            UC3[Track Donation History]
+                            UC4[Segment Donors]
+                            UC5[Donor Lifecycle Analysis]
+                            UC6[Generate Donor Reports]
+                            UC7[Manage Donor Communications]
+                            UC8[Track Engagement Score]
+                        end
+                        
+                        Admin[👤 Administrator]
+                        FM[👤 Fundraising Manager]
+                        DO[👤 Development Officer]
+                        Donor[👤 Donor]
+                        
+                        Admin --> UC1
+                        Admin --> UC2
+                        FM --> UC3
+                        FM --> UC4
+                        FM --> UC5
+                        DO --> UC6
+                        DO --> UC7
+                        DO --> UC8
+                        Donor -.-> UC1
+                        
+                        UC3 -.-> UC5
+                        UC4 -.-> UC6
+                        UC8 -.-> UC7
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Donor Registration</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant D as Donor
+                        participant UI as Web Interface
+                        participant API as FastAPI Backend
+                        participant Auth as Auth Service
+                        participant DB as PostgreSQL
+                        participant Email as Email Service
+                        
+                        D->>UI: Access registration page
+                        UI->>D: Display registration form
+                        D->>UI: Submit donor information
+                        UI->>API: POST /api/donors/register
+                        API->>Auth: Validate session
+                        Auth-->>API: Session valid
+                        API->>DB: Check duplicate email
+                        DB-->>API: No duplicate found
+                        API->>DB: INSERT donor record
+                        DB-->>API: Donor ID generated
+                        API->>Email: Send welcome email
+                        Email-->>D: Welcome email received
+                        API-->>UI: Registration successful
+                        UI-->>D: Display success message
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Donor Segmentation</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant FM as Fundraising Manager
+                        participant UI as React Dashboard
+                        participant API as FastAPI Backend
+                        participant ML as ML Service
+                        participant DB as PostgreSQL
+                        participant Cache as Redis Cache
+                        
+                        FM->>UI: Request donor segments
+                        UI->>API: GET /api/donors/segments
+                        API->>Cache: Check cached segments
+                        Cache-->>API: Cache miss
+                        API->>DB: Query donor data
+                        DB-->>API: Return donor records
+                        API->>ML: Process segmentation
+                        ML->>ML: Apply clustering algorithm
+                        ML-->>API: Return segments
+                        API->>Cache: Store segments (TTL: 1hr)
+                        API->>DB: Save segment assignments
+                        API-->>UI: Return segment data
+                        UI->>UI: Render segment visualization
+                        UI-->>FM: Display donor segments
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaign Management Section -->
+        <div class="diagram-section" id="campaign-management">
+            <h2 class="section-title">2. Campaign Management</h2>
+            
+            <h3 class="subsection-title">Use Case Diagram</h3>
+            <p class="description">End-to-end campaign creation, execution, and tracking</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TB
+                        subgraph "Campaign Management"
+                            UC1[Create Campaign]
+                            UC2[Set Campaign Goals]
+                            UC3[Track Progress]
+                            UC4[Manage Campaign Team]
+                            UC5[Generate Campaign Reports]
+                            UC6[Send Campaign Communications]
+                            UC7[Process Donations]
+                            UC8[Campaign Analytics]
+                        end
+                        
+                        CM[👤 Campaign Manager]
+                        FM[👤 Fundraising Manager]
+                        Vol[👤 Volunteer]
+                        Donor[👤 Donor]
+                        Exec[👤 Executive]
+                        
+                        CM --> UC1
+                        CM --> UC2
+                        CM --> UC4
+                        FM --> UC3
+                        FM --> UC5
+                        FM --> UC6
+                        Vol --> UC7
+                        Donor -.-> UC7
+                        Exec --> UC8
+                        
+                        UC2 -.-> UC3
+                        UC3 -.-> UC5
+                        UC7 -.-> UC8
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Campaign Creation</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant CM as Campaign Manager
+                        participant UI as React Dashboard
+                        participant API as FastAPI Backend
+                        participant Val as Validation Service
+                        participant DB as PostgreSQL
+                        participant WF as Workflow Engine
+                        participant Not as Notification Service
+                        
+                        CM->>UI: Click "New Campaign"
+                        UI->>CM: Show campaign form
+                        CM->>UI: Enter campaign details
+                        UI->>API: POST /api/campaigns/create
+                        API->>Val: Validate campaign data
+                        Val-->>API: Validation passed
+                        API->>DB: BEGIN TRANSACTION
+                        API->>DB: INSERT campaign record
+                        DB-->>API: Campaign ID
+                        API->>DB: INSERT campaign_goals
+                        API->>DB: INSERT campaign_team
+                        API->>DB: COMMIT TRANSACTION
+                        API->>WF: Initialize campaign workflow
+                        WF-->>API: Workflow created
+                        API->>Not: Notify team members
+                        Not-->>CM: Notifications sent
+                        API-->>UI: Campaign created successfully
+                        UI-->>CM: Show campaign dashboard
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Section -->
+        <div class="diagram-section" id="analytics">
+            <h2 class="section-title">3. Analytics & Reporting</h2>
+            
+            <h3 class="subsection-title">Use Case Diagram</h3>
+            <p class="description">Comprehensive analytics for data-driven decision making</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TB
+                        subgraph "Analytics & Reporting"
+                            UC1[View Executive Dashboard]
+                            UC2[Generate Financial Reports]
+                            UC3[Donor Analytics]
+                            UC4[Campaign Performance]
+                            UC5[Export Reports]
+                            UC6[Schedule Reports]
+                            UC7[Custom Report Builder]
+                            UC8[Predictive Analytics]
+                        end
+                        
+                        Exec[👤 Executive Director]
+                        Board[👤 Board Member]
+                        CFO[👤 CFO]
+                        Analyst[👤 Data Analyst]
+                        
+                        Exec --> UC1
+                        Board --> UC1
+                        CFO --> UC2
+                        CFO --> UC5
+                        Analyst --> UC3
+                        Analyst --> UC4
+                        Analyst --> UC7
+                        Exec --> UC6
+                        Analyst --> UC8
+                        
+                        UC3 -.-> UC8
+                        UC4 -.-> UC1
+                        UC7 -.-> UC5
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Executive Dashboard</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant Exec as Executive
+                        participant UI as React Dashboard
+                        participant API as FastAPI Backend
+                        participant Cache as Redis Cache
+                        participant Analytics as Analytics Engine
+                        participant DB as PostgreSQL
+                        participant WS as WebSocket
+                        
+                        Exec->>UI: Access dashboard
+                        UI->>API: GET /api/analytics/executive
+                        API->>Cache: Check cached metrics
+                        Cache-->>API: Partial cache hit
+                        
+                        par Parallel Data Fetching
+                            API->>DB: Query donation metrics
+                            and
+                            API->>DB: Query campaign status
+                            and
+                            API->>DB: Query donor statistics
+                            and
+                            API->>Analytics: Calculate trends
+                        end
+                        
+                        DB-->>API: Return metrics
+                        Analytics-->>API: Return calculations
+                        API->>Cache: Update cache (TTL: 15min)
+                        API-->>UI: Send dashboard data
+                        UI->>UI: Render charts & KPIs
+                        UI-->>Exec: Display dashboard
+                        
+                        UI->>WS: Subscribe to updates
+                        WS-->>UI: Real-time updates
+                        UI-->>Exec: Update metrics live
+                </div>
+            </div>
+        </div>
+
+        <!-- Major Gifts Management -->
+        <div class="diagram-section" id="major-gifts">
+            <h2 class="section-title">4. Major Gifts Management</h2>
+            
+            <h3 class="subsection-title">Use Case Diagram</h3>
+            <p class="description">Strategic management of high-value donor relationships</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TB
+                        subgraph "Major Gifts Management"
+                            UC1[Identify Prospects]
+                            UC2[Create Cultivation Plan]
+                            UC3[Track Interactions]
+                            UC4[Manage Ask Strategy]
+                            UC5[Process Major Gift]
+                            UC6[Stewardship Planning]
+                            UC7[ROI Analysis]
+                            UC8[Pipeline Management]
+                        end
+                        
+                        MGO[👤 Major Gifts Officer]
+                        DO[👤 Development Officer]
+                        ED[👤 Executive Director]
+                        Donor[👤 Major Donor]
+                        
+                        MGO --> UC1
+                        MGO --> UC2
+                        DO --> UC3
+                        MGO --> UC4
+                        ED --> UC5
+                        MGO --> UC6
+                        DO --> UC7
+                        MGO --> UC8
+                        Donor -.-> UC5
+                        
+                        UC1 -.-> UC2
+                        UC3 -.-> UC4
+                        UC5 -.-> UC6
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Major Gift Processing</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant MGO as Major Gifts Officer
+                        participant UI as React Dashboard
+                        participant API as FastAPI Backend
+                        participant Auth as Authorization
+                        participant DB as PostgreSQL
+                        participant Fin as Financial System
+                        participant Doc as Document Service
+                        participant Not as Notification Service
+                        
+                        MGO->>UI: Submit major gift details
+                        UI->>API: POST /api/major-gifts/process
+                        API->>Auth: Check approval limits
+                        Auth-->>API: Requires ED approval
+                        API->>DB: Save gift (status: pending)
+                        API->>Not: Notify Executive Director
+                        Not-->>ED: Approval request
+                        ED->>UI: Approve gift
+                        UI->>API: PUT /api/major-gifts/approve
+                        API->>DB: Update status: approved
+                        API->>Fin: Process payment
+                        Fin-->>API: Payment confirmed
+                        API->>Doc: Generate tax receipt
+                        Doc-->>API: Receipt generated
+                        API->>DB: Update gift record
+                        API->>Not: Send thank you workflow
+                        API-->>UI: Gift processed successfully
+                        UI-->>MGO: Display confirmation
+                </div>
+            </div>
+        </div>
+
+        <!-- User Management Section -->
+        <div class="diagram-section" id="user-management">
+            <h2 class="section-title">5. User & Role Management</h2>
+            
+            <h3 class="subsection-title">Use Case Diagram</h3>
+            <p class="description">Multi-tenant user management with role-based access control</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TB
+                        subgraph "User & Role Management"
+                            UC1[Create User Account]
+                            UC2[Assign Roles]
+                            UC3[Manage Permissions]
+                            UC4[Multi-tenant Access]
+                            UC5[Audit User Actions]
+                            UC6[Password Management]
+                            UC7[Two-Factor Auth]
+                            UC8[Session Management]
+                        end
+                        
+                        SA[👤 Super Admin]
+                        TA[👤 Tenant Admin]
+                        User[👤 Staff User]
+                        Aud[👤 Auditor]
+                        
+                        SA --> UC1
+                        SA --> UC2
+                        SA --> UC3
+                        SA --> UC4
+                        TA --> UC1
+                        TA --> UC2
+                        Aud --> UC5
+                        User --> UC6
+                        User --> UC7
+                        User -.-> UC8
+                        
+                        UC2 -.-> UC3
+                        UC1 -.-> UC7
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Role-Based Access Control</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant User as User
+                        participant UI as React App
+                        participant API as FastAPI Backend
+                        participant JWT as JWT Service
+                        participant RBAC as RBAC Engine
+                        participant DB as PostgreSQL
+                        participant Cache as Redis Cache
+                        
+                        User->>UI: Attempt to access resource
+                        UI->>API: GET /api/resource (JWT token)
+                        API->>JWT: Validate token
+                        JWT-->>API: Token valid, user_id
+                        API->>Cache: Check cached permissions
+                        Cache-->>API: Cache miss
+                        API->>DB: Query user roles
+                        DB-->>API: User roles
+                        API->>DB: Query role permissions
+                        DB-->>API: Permission set
+                        API->>RBAC: Evaluate access
+                        RBAC->>RBAC: Check resource permissions
+                        RBAC-->>API: Access granted
+                        API->>Cache: Cache permissions (TTL: 30min)
+                        API->>DB: Log access attempt
+                        API-->>UI: Return resource data
+                        UI-->>User: Display resource
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Management -->
+        <div class="diagram-section" id="financial">
+            <h2 class="section-title">6. Financial Management</h2>
+            
+            <h3 class="subsection-title">Use Case Diagram</h3>
+            <p class="description">Comprehensive financial tracking and reporting</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TB
+                        subgraph "Financial Management"
+                            UC1[Process Donations]
+                            UC2[Generate Receipts]
+                            UC3[Financial Reporting]
+                            UC4[Budget Management]
+                            UC5[Expense Tracking]
+                            UC6[Grant Management]
+                            UC7[Reconciliation]
+                            UC8[Tax Reporting]
+                        end
+                        
+                        CFO[👤 CFO]
+                        Acc[👤 Accountant]
+                        FM[👤 Finance Manager]
+                        Aud[👤 Auditor]
+                        
+                        Acc --> UC1
+                        Acc --> UC2
+                        CFO --> UC3
+                        FM --> UC4
+                        FM --> UC5
+                        FM --> UC6
+                        Acc --> UC7
+                        CFO --> UC8
+                        Aud -.-> UC3
+                        
+                        UC1 -.-> UC2
+                        UC5 -.-> UC4
+                        UC7 -.-> UC3
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Donation Processing</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant Donor as Donor
+                        participant UI as Donation Portal
+                        participant API as FastAPI Backend
+                        participant Pay as Payment Gateway
+                        participant DB as PostgreSQL
+                        participant Rec as Receipt Service
+                        participant Email as Email Service
+                        participant Acc as Accounting System
+                        
+                        Donor->>UI: Select donation amount
+                        UI->>Donor: Show payment form
+                        Donor->>UI: Enter payment details
+                        UI->>API: POST /api/donations/process
+                        API->>Pay: Process payment
+                        Pay->>Pay: Validate card
+                        Pay-->>API: Payment successful
+                        API->>DB: BEGIN TRANSACTION
+                        API->>DB: INSERT donation record
+                        API->>DB: UPDATE donor totals
+                        API->>DB: UPDATE campaign progress
+                        API->>DB: COMMIT TRANSACTION
+                        API->>Rec: Generate tax receipt
+                        Rec-->>API: Receipt PDF created
+                        API->>Email: Send receipt email
+                        Email-->>Donor: Receipt received
+                        API->>Acc: Sync to accounting
+                        Acc-->>API: Entry created
+                        API-->>UI: Donation successful
+                        UI-->>Donor: Thank you message
+                </div>
+            </div>
+        </div>
+
+        <!-- Communication Hub -->
+        <div class="diagram-section" id="communication">
+            <h2 class="section-title">7. Communication Hub</h2>
+            
+            <h3 class="subsection-title">Use Case Diagram</h3>
+            <p class="description">Integrated multi-channel communication management</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TB
+                        subgraph "Communication Hub"
+                            UC1[Email Campaigns]
+                            UC2[SMS Messaging]
+                            UC3[Newsletter Management]
+                            UC4[Template Library]
+                            UC5[Personalization Engine]
+                            UC6[Communication Analytics]
+                            UC7[Automation Workflows]
+                            UC8[Compliance Management]
+                        end
+                        
+                        MO[👤 Marketing Officer]
+                        CM[👤 Communications Manager]
+                        DO[👤 Development Officer]
+                        Comp[👤 Compliance Officer]
+                        
+                        MO --> UC1
+                        MO --> UC2
+                        CM --> UC3
+                        CM --> UC4
+                        DO --> UC5
+                        MO --> UC6
+                        CM --> UC7
+                        Comp --> UC8
+                        
+                        UC5 -.-> UC1
+                        UC4 -.-> UC3
+                        UC7 -.-> UC6
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Email Campaign</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant MO as Marketing Officer
+                        participant UI as React Dashboard
+                        participant API as FastAPI Backend
+                        participant Seg as Segmentation Engine
+                        participant Temp as Template Engine
+                        participant ESP as Email Service Provider
+                        participant DB as PostgreSQL
+                        participant Track as Tracking Service
+                        
+                        MO->>UI: Create email campaign
+                        UI->>MO: Show campaign builder
+                        MO->>UI: Select audience segment
+                        UI->>API: GET /api/segments/donors
+                        API->>Seg: Process segment criteria
+                        Seg->>DB: Query matching donors
+                        DB-->>Seg: Return donor list
+                        Seg-->>API: Segmented list
+                        API-->>UI: Display audience count
+                        MO->>UI: Select email template
+                        UI->>API: GET /api/templates/email
+                        API-->>UI: Return templates
+                        MO->>UI: Customize & schedule
+                        UI->>API: POST /api/campaigns/email
+                        API->>Temp: Process personalization
+                        Temp-->>API: Personalized content
+                        API->>ESP: Queue email batch
+                        ESP-->>API: Batch queued
+                        API->>DB: Save campaign record
+                        API-->>UI: Campaign scheduled
+                        
+                        Note over ESP,Track: Email sending process
+                        ESP->>Track: Send with tracking
+                        Track-->>API: Delivery status
+                        API->>DB: Update metrics
+                </div>
+            </div>
+        </div>
+
+        <!-- Events Management -->
+        <div class="diagram-section" id="events">
+            <h2 class="section-title">8. Events Management</h2>
+            
+            <h3 class="subsection-title">Use Case Diagram</h3>
+            <p class="description">Complete event lifecycle from planning to post-event analysis</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TB
+                        subgraph "Events Management"
+                            UC1[Create Event]
+                            UC2[Manage Registration]
+                            UC3[Ticketing System]
+                            UC4[Venue Management]
+                            UC5[Volunteer Coordination]
+                            UC6[Check-in System]
+                            UC7[Event Analytics]
+                            UC8[Post-Event Survey]
+                        end
+                        
+                        EM[👤 Event Manager]
+                        Vol[👤 Volunteer Coordinator]
+                        Att[👤 Attendee]
+                        FM[👤 Fundraising Manager]
+                        
+                        EM --> UC1
+                        EM --> UC2
+                        EM --> UC3
+                        EM --> UC4
+                        Vol --> UC5
+                        EM --> UC6
+                        FM --> UC7
+                        EM --> UC8
+                        Att -.-> UC2
+                        Att -.-> UC3
+                        
+                        UC2 -.-> UC3
+                        UC6 -.-> UC7
+                        UC1 -.-> UC5
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Event Registration</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant Att as Attendee
+                        participant UI as Event Portal
+                        participant API as FastAPI Backend
+                        participant Val as Validation Service
+                        participant Pay as Payment Gateway
+                        participant DB as PostgreSQL
+                        participant QR as QR Code Service
+                        participant Email as Email Service
+                        
+                        Att->>UI: Browse events
+                        UI->>API: GET /api/events/upcoming
+                        API->>DB: Query active events
+                        DB-->>API: Event list
+                        API-->>UI: Return events
+                        UI-->>Att: Display events
+                        Att->>UI: Select event
+                        UI->>API: GET /api/events/{id}/details
+                        API-->>UI: Event details & capacity
+                        UI-->>Att: Show registration form
+                        Att->>UI: Submit registration
+                        UI->>API: POST /api/events/register
+                        API->>Val: Validate registration
+                        Val->>DB: Check capacity
+                        DB-->>Val: Spots available
+                        Val-->>API: Validation passed
+                        API->>Pay: Process payment
+                        Pay-->>API: Payment successful
+                        API->>DB: Save registration
+                        API->>QR: Generate ticket QR
+                        QR-->>API: QR code generated
+                        API->>Email: Send confirmation
+                        Email-->>Att: Ticket email
+                        API-->>UI: Registration complete
+                        UI-->>Att: Display success
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Sequence Diagram - Event Check-in</h3>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant Staff as Event Staff
+                        participant App as Mobile Check-in App
+                        participant API as FastAPI Backend
+                        participant QR as QR Scanner
+                        participant DB as PostgreSQL
+                        participant WS as WebSocket
+                        participant Dash as Live Dashboard
+                        
+                        Staff->>App: Open check-in app
+                        App->>API: Authenticate staff
+                        API-->>App: Auth successful
+                        
+                        loop Check-in Process
+                            Staff->>QR: Scan attendee QR
+                            QR-->>App: QR data extracted
+                            App->>API: POST /api/events/checkin
+                            API->>DB: Verify registration
+                            DB-->>API: Registration valid
+                            API->>DB: Update check-in status
+                            API->>WS: Broadcast update
+                            WS-->>Dash: Update attendance
+                            API-->>App: Check-in confirmed
+                            App-->>Staff: Show attendee info
+                        end
+                        
+                        Note over Dash: Real-time metrics
+                        Dash->>API: GET /api/events/stats
+                        API->>DB: Query live stats
+                        DB-->>API: Current metrics
+                        API-->>Dash: Update dashboard
+                </div>
+            </div>
+        </div>
+
+        <!-- Integration Architecture -->
+        <div class="diagram-section">
+            <h2 class="section-title">System Integration Architecture</h2>
+            
+            <h3 class="subsection-title">High-Level System Architecture</h3>
+            <p class="description">Complete system integration showing all components and data flow</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TB
+                        subgraph "Client Layer"
+                            Web[React Web App]
+                            Mobile[Mobile App]
+                            Portal[Donor Portal]
+                        end
+                        
+                        subgraph "API Gateway"
+                            Gateway[API Gateway/Load Balancer]
+                            Auth[Authentication Service]
+                        end
+                        
+                        subgraph "Application Layer"
+                            API1[FastAPI Instance 1]
+                            API2[FastAPI Instance 2]
+                            API3[FastAPI Instance 3]
+                        end
+                        
+                        subgraph "Service Layer"
+                            Email[Email Service]
+                            SMS[SMS Service]
+                            Payment[Payment Gateway]
+                            Analytics[Analytics Engine]
+                            ML[ML Service]
+                            Doc[Document Service]
+                        end
+                        
+                        subgraph "Data Layer"
+                            DB[(PostgreSQL Primary)]
+                            DBR[(PostgreSQL Replica)]
+                            Cache[(Redis Cache)]
+                            S3[Object Storage]
+                        end
+                        
+                        subgraph "Background Jobs"
+                            Queue[Job Queue]
+                            Worker1[Worker 1]
+                            Worker2[Worker 2]
+                        end
+                        
+                        Web --> Gateway
+                        Mobile --> Gateway
+                        Portal --> Gateway
+                        
+                        Gateway --> Auth
+                        Auth --> API1
+                        Auth --> API2
+                        Auth --> API3
+                        
+                        API1 --> Cache
+                        API2 --> Cache
+                        API3 --> Cache
+                        
+                        API1 --> DB
+                        API2 --> DB
+                        API3 --> DB
+                        
+                        API1 --> Queue
+                        Queue --> Worker1
+                        Queue --> Worker2
+                        
+                        Worker1 --> Email
+                        Worker1 --> SMS
+                        Worker2 --> Analytics
+                        Worker2 --> ML
+                        
+                        API1 --> Payment
+                        API2 --> Doc
+                        API3 --> S3
+                        
+                        DB -.-> DBR
+                        Analytics --> DBR
+                        ML --> DBR
+                </div>
+            </div>
+        </div>
+
+        <!-- Authentication Flow -->
+        <div class="diagram-section">
+            <h2 class="section-title">Authentication & Authorization</h2>
+            
+            <h3 class="subsection-title">Multi-Tenant Authentication Flow</h3>
+            <p class="description">Secure authentication with JWT and multi-tenant support</p>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    sequenceDiagram
+                        participant User
+                        participant React as React App
+                        participant API as FastAPI
+                        participant Auth as Auth Service
+                        participant JWT as JWT Service
+                        participant DB as PostgreSQL
+                        participant Redis
+                        
+                        User->>React: Enter credentials
+                        React->>API: POST /api/auth/login
+                        API->>Auth: Validate credentials
+                        Auth->>DB: Query user + tenant
+                        DB-->>Auth: User & tenant data
+                        Auth->>Auth: Hash comparison
+                        Auth->>JWT: Generate tokens
+                        JWT-->>Auth: Access & refresh tokens
+                        Auth->>Redis: Store session
+                        Auth-->>API: Auth successful
+                        API-->>React: Return tokens
+                        React->>React: Store in memory
+                        
+                        Note over React,API: Subsequent requests
+                        React->>API: Request with JWT
+                        API->>JWT: Validate token
+                        JWT->>Redis: Check blacklist
+                        Redis-->>JWT: Token valid
+                        JWT-->>API: Claims extracted
+                        API->>API: Apply tenant context
+                        API-->>React: Authorized response
+                        
+                        Note over React,API: Token refresh
+                        React->>API: POST /api/auth/refresh
+                        API->>JWT: Validate refresh token
+                        JWT->>DB: Verify user active
+                        DB-->>JWT: User verified
+                        JWT-->>API: New access token
+                        API-->>React: Updated token
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#667eea',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#5a67d8',
+                lineColor: '#5a67d8',
+                secondaryColor: '#764ba2',
+                tertiaryColor: '#f7fafc'
+            }
+        });
+    </script>
+</body>
+</html>
