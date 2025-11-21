@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, and_, or_, case, desc
 #from typing import Optional
+from datetime import timezone
 from uuid import UUID
 #from datetime import datetime, timedelta
 from decimal import Decimal
@@ -1557,8 +1558,7 @@ async def get_upgrade_readiness(
     for donor in donors:
         recency = 0.3 if donor.last_donation_date and (datetime.now().date() - donor.last_donation_date).days < 90 else 0
         frequency = min(0.4, donor.donation_count / 20)
-        #value = min(0.3, (donor.total_donated or 0) / 10000)
-        value = min(0.3, float(donor.total_donated or 0) / 10000)
+        value = min(0.3, (donor.total_donated or 0) / 10000)
         score = recency + frequency + value
 
         if score >= min_score:
@@ -2127,8 +2127,7 @@ async def get_affinity(
         # Simple affinity: frequency + recency + monetary
         freq_score = min(30, donor.donation_count * 3)
         recency_score = 40 if donor.last_donation_date and (datetime.now() - donor.last_donation_date).days < 90 else 20
-        #monetary_score = min(30, (donor.total_donated or 0) / 1000)
-        monetary_score = min(30, float(donor.total_donated or 0) / 1000)
+        monetary_score = min(30, (donor.total_donated or 0) / 1000)
 
         total_score = freq_score + recency_score + monetary_score
         affinity_scores.append(total_score)
@@ -2437,7 +2436,204 @@ async def get_executive_scorecard(
         "status": "healthy"
     }
 
+@router.get("/engagement/investment-continuum/{organization_id}")
+async def get_donor_engagement_investment_continuum(
+        organization_id: str,
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+):
+    """
+    Donor Engagement Continuum with Strategic Investment Levels (1-5 scale)
 
+    Returns donor counts by lifecycle phase with recommended investment intensity.
+    Based on P2SG framework for resource allocation optimization.
+
+    Investment Scale:
+    1 = Minimal touch (mass outreach)
+    2 = Low touch (automated nurture)
+    3 = Moderate touch (regular engagement)
+    4 = High touch (personalized stewardship)
+    5 = Maximum touch (dedicated relationship management)
+    """
+    verify_organization_access(current_user, UUID(organization_id))
+
+    # Get all donors with their giving history
+    donors_with_gifts = db.query(
+        Donor.id,
+        func.count(Donation.id).label('gift_count'),
+        func.sum(Donation.amount).label('total_given'),
+        func.max(Donation.amount).label('largest_gift'),
+        func.max(Donation.donation_date).label('last_gift_date')
+    ).outerjoin(
+        Donation,
+        and_(
+            Donation.donor_id == Donor.id,
+            Donation.organization_id == UUID(organization_id)
+        )
+    ).filter(
+        Donor.organization_id == UUID(organization_id)
+    ).group_by(Donor.id).all()
+
+    # Categorize donors into phases
+    phases = {
+        'prospects': {'count': 0, 'investment_level': 2, 'total_value': 0},
+        'first_time': {'count': 0, 'investment_level': 3, 'total_value': 0},
+        'repeat': {'count': 0, 'investment_level': 4, 'total_value': 0},
+        'loyal': {'count': 0, 'investment_level': 4, 'total_value': 0},
+        'major': {'count': 0, 'investment_level': 5, 'total_value': 0}
+    }
+
+    current_date = datetime.now(timezone.utc)
+
+    for donor_data in donors_with_gifts:
+        gift_count = donor_data.gift_count or 0
+        total_given = float(donor_data.total_given or 0)
+        largest_gift = float(donor_data.largest_gift or 0)
+        last_gift_date = donor_data.last_gift_date
+
+        # Calculate months since last gift
+        if last_gift_date:
+            months_since = (current_date - last_gift_date).days / 30.0
+        else:
+            months_since = 999
+
+        # Classify donor
+        if gift_count == 0:
+            phase = 'prospects'
+        elif largest_gift >= 100000:  # $100K+ = Major Donor
+            phase = 'major'
+            phases[phase]['total_value'] += total_given
+        elif gift_count >= 5 and months_since <= 18:  # 5+ gifts in 18 months = Loyal
+            phase = 'loyal'
+            phases[phase]['total_value'] += total_given
+        elif gift_count >= 2:  # 2-4 gifts = Repeat
+            phase = 'repeat'
+            phases[phase]['total_value'] += total_given
+        else:  # 1 gift = First-time
+            phase = 'first_time'
+            phases[phase]['total_value'] += total_given
+
+        phases[phase]['count'] += 1
+
+    # Build response with strategic recommendations
+    continuum_data = [
+        {
+            'phase': 'Prospects',
+            'phase_key': 'prospects',
+            'donor_count': phases['prospects']['count'],
+            'total_value': round(phases['prospects']['total_value'], 2),
+            'investment_level': 2,
+            'investment_label': 'Low Touch',
+            'color': '#9ca3af',
+            'description': 'Broad outreach, mass communication',
+            'strategy': 'Automated email sequences, social media engagement, event invitations',
+            'roi_potential': 'Medium - Wide net approach'
+        },
+        {
+            'phase': 'First-Time Donors',
+            'phase_key': 'first_time',
+            'donor_count': phases['first_time']['count'],
+            'total_value': round(phases['first_time']['total_value'], 2),
+            'investment_level': 3,
+            'investment_label': 'Moderate Touch',
+            'color': '#60a5fa',
+            'description': 'Cultivation & onboarding focused',
+            'strategy': 'Welcome series, impact reports, second gift campaigns, surveys',
+            'roi_potential': 'High - Critical conversion period'
+        },
+        {
+            'phase': 'Repeat Donors',
+            'phase_key': 'repeat',
+            'donor_count': phases['repeat']['count'],
+            'total_value': round(phases['repeat']['total_value'], 2),
+            'investment_level': 4,
+            'investment_label': 'High Touch',
+            'color': '#34d399',
+            'description': 'Active stewardship & engagement',
+            'strategy': 'Quarterly touchpoints, exclusive updates, upgrade opportunities, thank you calls',
+            'roi_potential': 'Very High - Proven commitment'
+        },
+        {
+            'phase': 'Loyal Donors',
+            'phase_key': 'loyal',
+            'donor_count': phases['loyal']['count'],
+            'total_value': round(phases['loyal']['total_value'], 2),
+            'investment_level': 4,
+            'investment_label': 'High Touch',
+            'color': '#fbbf24',
+            'description': 'Deep relationship building',
+            'strategy': 'Personal outreach, VIP experiences, leadership councils, major gift conversations',
+            'roi_potential': 'Very High - Sustainable revenue'
+        },
+        {
+            'phase': 'Major Donors',
+            'phase_key': 'major',
+            'donor_count': phases['major']['count'],
+            'total_value': round(phases['major']['total_value'], 2),
+            'investment_level': 5,
+            'investment_label': 'Maximum Touch',
+            'color': '#e87500',
+            'description': 'Dedicated relationship management',
+            'strategy': 'Executive engagement, customized proposals, board involvement, legacy planning',
+            'roi_potential': 'Exceptional - Transformational gifts'
+        }
+    ]
+
+    total_donors = sum(p['donor_count'] for p in continuum_data)
+    total_portfolio_value = sum(p['total_value'] for p in continuum_data)
+
+    # Calculate investment efficiency score
+    # Higher phases with more donors = better positioned portfolio
+    weighted_score = sum(
+        p['donor_count'] * p['investment_level'] for p in continuum_data
+    ) / total_donors if total_donors > 0 else 0
+
+    return {
+        'organization_id': organization_id,
+        'generated_at': datetime.now().isoformat(),
+        'summary': {
+            'total_donors': total_donors,
+            'total_portfolio_value': round(total_portfolio_value, 2),
+            'portfolio_health_score': round(weighted_score, 2),
+            'portfolio_health_interpretation': (
+                'Excellent - Strong mid-to-upper pipeline' if weighted_score >= 3.5 else
+                'Good - Balanced portfolio' if weighted_score >= 3.0 else
+                'Fair - Heavy on acquisition' if weighted_score >= 2.5 else
+                'Needs Attention - Weak retention'
+            )
+        },
+        'continuum': continuum_data,
+        'investment_framework': {
+            'scale': '1-5 where 1=Minimal, 5=Maximum resource allocation',
+            'principle': 'Invest proportionally to donor lifetime value potential',
+            'source': 'P2SG Strategic Roadmap - Donor Engagement Continuum'
+        },
+        'recommendations': {
+            'immediate_focus': get_immediate_focus_recommendation(phases),
+            'resource_allocation': 'Allocate 50-60% of resources to levels 4-5, 30-40% to level 3, 10-20% to levels 1-2'
+        }
+    }
+
+
+def get_immediate_focus_recommendation(phases: dict) -> str:
+    """Generate strategic recommendation based on portfolio composition"""
+
+    total = sum(p['count'] for p in phases.values())
+    if total == 0:
+        return "Begin donor acquisition initiatives"
+
+    major_pct = (phases['major']['count'] / total * 100) if total > 0 else 0
+    first_time_pct = (phases['first_time']['count'] / total * 100) if total > 0 else 0
+    repeat_pct = (phases['repeat']['count'] / total * 100) if total > 0 else 0
+
+    if major_pct > 15:
+        return "Portfolio strong at top. Focus on maintaining major donor relationships and upgrading loyal donors."
+    elif first_time_pct > 40:
+        return "High first-time ratio. Priority: Second gift conversion programs and retention strategies."
+    elif repeat_pct > 30:
+        return "Solid repeat donor base. Opportunity: Upgrade strategies and loyalty program development."
+    else:
+        return "Balanced portfolio. Maintain current engagement strategies while testing upgrade pathways."
 # =====================================================================
 # Helper Function
 # =====================================================================

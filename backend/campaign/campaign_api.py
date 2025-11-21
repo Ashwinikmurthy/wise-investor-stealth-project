@@ -8,7 +8,7 @@ import re
 
 from database import get_db
 from user_management.auth_dependencies import get_current_user
-from models import Users as User, Organizations as Organization, Campaigns as Campaign, CampaignUpdates as CampaignUpdate
+from models import Users as User, Organizations as Organization, Campaigns as Campaign, CampaignUpdates as CampaignUpdate, Donations
 #from campaign.campaign_models import  Campaign, CampaignUpdate
 from campaign.campaign_schemas import (
     CampaignCreate, CampaignUpdate as CampaignUpdateSchema, CampaignResponse,
@@ -25,6 +25,82 @@ def generate_slug(name: str) -> str:
     slug = slug.strip('-')
     return f"{slug}-{str(uuid.uuid4())[:8]}"
 
+def normalize_campaign_fields(campaign: Campaign) -> Campaign:
+    """
+    Normalize campaign fields to prevent Pydantic validation errors.
+    Sets None values to appropriate defaults.
+    """
+    from decimal import Decimal
+
+    # Integer fields that should default to 0
+    if campaign.donor_count is None:
+        campaign.donor_count = 0
+    if campaign.donation_count is None:
+        campaign.donation_count = 0
+    if campaign.view_count is None:
+        campaign.view_count = 0
+    if campaign.share_count is None:
+        campaign.share_count = 0
+
+    # Decimal/Float fields
+    if campaign.raised_amount is None:
+        campaign.raised_amount = 0
+    if campaign.average_donation is None:
+        campaign.average_donation = 0
+
+    return campaign
+
+def calculate_live_donation_stats(db: Session, campaign_id: uuid.UUID) -> dict:
+    """
+    Calculate live donation statistics from the Donations table.
+    This ensures accurate totals that reflect actual completed donations.
+    """
+    from sqlalchemy import func
+
+    # Get total raised
+    total_raised = db.query(
+        func.coalesce(func.sum(Donations.amount), 0)
+    ).filter(
+        Donations.campaign_id == campaign_id,
+        Donations.payment_status == 'completed'
+    ).scalar() or 0
+
+    # Get donor count (unique donors)
+    donor_count = db.query(
+        func.count(func.distinct(Donations.donor_id))
+    ).filter(
+        Donations.campaign_id == campaign_id,
+        Donations.payment_status == 'completed',
+        Donations.donor_id.isnot(None)
+    ).scalar() or 0
+
+    # Get donation count
+    donation_count = db.query(
+        func.count(Donations.id)
+    ).filter(
+        Donations.campaign_id == campaign_id,
+        Donations.payment_status == 'completed'
+    ).scalar() or 0
+
+    # Calculate average donation
+    average_donation = float(total_raised / donation_count) if donation_count > 0 else 0
+
+    # Get largest donation
+    largest_donation = db.query(
+        func.max(Donations.amount)
+    ).filter(
+        Donations.campaign_id == campaign_id,
+        Donations.payment_status == 'completed'
+    ).scalar() or 0
+
+    return {
+        'raised_amount': float(total_raised),
+        'donor_count': donor_count,
+        'donation_count': donation_count,
+        'average_donation': average_donation,
+        'largest_donation': float(largest_donation)
+    }
+
 def calculate_campaign_metrics(campaign: Campaign) -> dict:
     """Calculate computed metrics for a campaign"""
     metrics = {}
@@ -37,17 +113,20 @@ def calculate_campaign_metrics(campaign: Campaign) -> dict:
 
     # Days remaining
     if campaign.end_date:
-        days_remaining = (campaign.end_date - date.today()).days
+        end_date = campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date
+        days_remaining = (end_date - date.today()).days
         metrics['days_remaining'] = max(0, days_remaining)
     else:
         metrics['days_remaining'] = None
 
     # Is active
-    now = datetime.utcnow().date()
+    now = date.today()
+    start_date = campaign.start_date.date() if isinstance(campaign.start_date, datetime) else campaign.start_date
+    end_date = campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date
     is_active = (
             campaign.status == "active" and
-            (campaign.start_date is None or campaign.start_date <= now) and
-            (campaign.end_date is None or campaign.end_date >= now)
+            (start_date is None or start_date <= now) and
+            (end_date is None or end_date >= now)
     )
     metrics['is_active'] = is_active
 
@@ -80,6 +159,15 @@ async def create_campaign(
     db.refresh(campaign)
 
     # Add computed metrics
+    campaign = normalize_campaign_fields(campaign)
+
+    # Get live donation stats from database (will be 0 for new campaigns)
+    live_stats = calculate_live_donation_stats(db, campaign.id)
+    campaign.raised_amount = live_stats['raised_amount']
+    campaign.donor_count = live_stats['donor_count']
+    campaign.donation_count = live_stats['donation_count']
+    campaign.average_donation = live_stats['average_donation']
+
     metrics = calculate_campaign_metrics(campaign)
     response = CampaignResponse.model_validate(campaign,from_attributes=True)
     for key, value in metrics.items():
@@ -108,6 +196,15 @@ async def list_campaigns(
     # Add computed metrics to each campaign
     responses = []
     for campaign in campaigns:
+        campaign = normalize_campaign_fields(campaign)
+
+        # Get live donation stats from database
+        live_stats = calculate_live_donation_stats(db, campaign.id)
+        campaign.raised_amount = live_stats['raised_amount']
+        campaign.donor_count = live_stats['donor_count']
+        campaign.donation_count = live_stats['donation_count']
+        campaign.average_donation = live_stats['average_donation']
+
         metrics = calculate_campaign_metrics(campaign)
         response = CampaignResponse.model_validate(campaign,from_attributes=True)
         for key, value in metrics.items():
@@ -136,6 +233,15 @@ async def get_campaign(
         raise HTTPException(status_code=404, detail="Campaign not found")
 
     # Add computed metrics
+    campaign = normalize_campaign_fields(campaign)
+
+    # Get live donation stats from database
+    live_stats = calculate_live_donation_stats(db, campaign.id)
+    campaign.raised_amount = live_stats['raised_amount']
+    campaign.donor_count = live_stats['donor_count']
+    campaign.donation_count = live_stats['donation_count']
+    campaign.average_donation = live_stats['average_donation']
+
     metrics = calculate_campaign_metrics(campaign)
     response = CampaignResponse.model_validate(campaign,from_attributes=True)
     for key, value in metrics.items():
@@ -174,6 +280,15 @@ async def update_campaign(
     db.refresh(campaign)
 
     # Add computed metrics
+    campaign = normalize_campaign_fields(campaign)
+
+    # Get live donation stats from database
+    live_stats = calculate_live_donation_stats(db, campaign.id)
+    campaign.raised_amount = live_stats['raised_amount']
+    campaign.donor_count = live_stats['donor_count']
+    campaign.donation_count = live_stats['donation_count']
+    campaign.average_donation = live_stats['average_donation']
+
     metrics = calculate_campaign_metrics(campaign)
     response = CampaignResponse.model_validate(campaign,from_attributes=True)
     for key, value in metrics.items():
@@ -235,7 +350,8 @@ async def get_campaign_performance(
     # Calculate days remaining
     days_remaining = None
     if campaign.end_date:
-        days_remaining = max(0, (campaign.end_date - date.today()).days)
+        end_date = campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date
+        days_remaining = max(0, (end_date - date.today()).days)
 
     # Calculate daily average
     daily_average = campaign.raised_amount / days_active if days_active > 0 else 0
@@ -289,13 +405,16 @@ async def get_all_campaigns_performance(
         days_active = (datetime.utcnow() - campaign.created_at).days or 1
         days_remaining = None
         if campaign.end_date:
-            days_remaining = max(0, (campaign.end_date - date.today()).days)
+            end_date = campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date
+        days_remaining = max(0, (end_date - date.today()).days)
 
         daily_average = campaign.raised_amount / days_active if days_active > 0 else 0
         projected_total = None
         is_on_track = True
         if campaign.end_date and days_remaining is not None:
-            total_campaign_days = (campaign.end_date - campaign.created_at).days or 1
+            end_date = campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date
+            created_date = campaign.created_at.date() if isinstance(campaign.created_at, datetime) else campaign.created_at
+            total_campaign_days = (end_date - created_date).days or 1
             projected_total = daily_average * total_campaign_days
             is_on_track = projected_total >= campaign.goal_amount
 
@@ -405,7 +524,8 @@ async def get_public_featured_campaigns(
         progress = (campaign.raised_amount / campaign.goal_amount * 100) if campaign.goal_amount > 0 else 0
         days_remaining = None
         if campaign.end_date:
-            days_remaining = max(0, (campaign.end_date - date.today()).days)
+            end_date = campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date
+        days_remaining = max(0, (end_date - date.today()).days)
 
         summary = PublicCampaignSummary(
             id=campaign.id,
@@ -457,7 +577,8 @@ async def get_all_public_campaigns(
         progress = (campaign.raised_amount / campaign.goal_amount * 100) if campaign.goal_amount > 0 else 0
         days_remaining = None
         if campaign.end_date:
-            days_remaining = max(0, (campaign.end_date - date.today()).days)
+            end_date = campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date
+        days_remaining = max(0, (end_date - date.today()).days)
 
         summary = PublicCampaignSummary(
             id=campaign.id,
@@ -509,7 +630,8 @@ async def get_public_campaign_by_slug(
     progress = (campaign.raised_amount / campaign.goal_amount * 100) if campaign.goal_amount > 0 else 0
     days_remaining = None
     if campaign.end_date:
-        days_remaining = max(0, (campaign.end_date - date.today()).days)
+        end_date = campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date
+        days_remaining = max(0, (end_date - date.today()).days)
 
     summary = PublicCampaignSummary(
         id=campaign.id,

@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import ComprehensiveAnalytics from './Dashboard/ComprehensiveAnalytics_UTD_colors.jsx';
+import ComprehensiveAnalytics from './Dashboard/NewExecutiveDashBoard';
+import './premium.css';
 import CampaignManagement from './campaignManagement';
 import MajorGiftsDashboardComplete from './MajorGiftsDashBoardComplete'; // ✅ NEW: Major Gifts Dashboard
 import DonorPortalWithAPI from './DonorportalUpdated';
@@ -95,14 +96,6 @@ const MainApplication = () => {
       description: 'Create and manage fundraising campaigns',
       color: colors.secondary,
       component: <CampaignManagement />
-    },
-    {
-      id: 'donors',
-      label: 'Donor Portal',
-      icon: Users,
-      description: 'Donor management and engagement tools',
-      color: colors.accent,
-      component: <DonorPortalWithAPI />
     },
     {
       id: 'elements',

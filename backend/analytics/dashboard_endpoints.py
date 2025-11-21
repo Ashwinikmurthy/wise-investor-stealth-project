@@ -12,7 +12,7 @@ import jwt
 from jwt import PyJWTError, ExpiredSignatureError
 
 from database import get_db
-from models import Organizations as Organization, Users as User, Donations as Donation, Donors as Donor, Programs as Program, Tasks as Task
+from models import Organizations as Organization, Users as User, Donations as Donation, Donors as Donor, Programs as Program, Tasks as Task, Campaigns as Campaign
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["Dashboard"])
 
@@ -574,7 +574,11 @@ async def get_dashboard_tasks(
             is_overdue = False
             days_until_due = None
             if task.due_date:
-                days_until_due = (task.due_date.date() - datetime.now().date()).days
+                # Handle both date and datetime objects
+                from datetime import date as date_type
+                due_date_obj = task.due_date if isinstance(task.due_date, date_type) and not isinstance(task.due_date, datetime) else task.due_date.date()
+                today = datetime.now().date()
+                days_until_due = (due_date_obj - today).days
                 is_overdue = days_until_due < 0
 
             formatted_tasks.append({
@@ -818,25 +822,277 @@ async def get_recent_activity(
             status_code=500,
             detail=f"Failed to retrieve recent activity: {str(e)}"
         )
-    recommendations = []
 
-    if revenue_status in ["Needs Improvement", "Fair"]:
-        recommendations.append("Launch a major fundraising campaign to boost revenue")
 
-    if retention_status in ["Needs Improvement", "Fair"]:
-        recommendations.append("Implement a donor stewardship program to improve retention")
+@router.get("/deadlines/{organization_id}")
+async def get_upcoming_deadlines(
+        organization_id: UUID,
+        days: int = Query(default=30, ge=1, le=365),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+):
+    """
+    Get upcoming deadlines and events for the dashboard
 
-    if acquisition_status in ["Needs Improvement", "Fair"]:
-        recommendations.append("Increase marketing spend and donor acquisition efforts")
+    Returns deadlines including:
+    - Campaign end dates
+    - Task due dates
+    - Major donor gift anniversaries
+    - Stewardship touchpoints
 
-    if engagement_status in ["Needs Improvement", "Fair"]:
-        recommendations.append("Create more touchpoints with inactive donors through newsletters and events")
+    Parameters:
+    - organization_id: Organization UUID
+    - days: Number of days ahead to look (default: 30, max: 365)
+    """
+    verify_organization_access(current_user, organization_id)
 
-    if not recommendations:
-        recommendations.append("Maintain current momentum - all metrics are healthy!")
-        recommendations.append("Consider expanding programs or launching new initiatives")
+    # Verify organization exists
+    organization = db.query(Organization).filter(
+        Organization.id == organization_id
+    ).first()
 
-    return recommendations
+    if not organization:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    try:
+        from datetime import date as DateType
+
+        print(f"DEBUG: Starting deadlines endpoint for org {organization_id}")
+
+        # Helper function to safely convert to date - DEFINED FIRST
+        def safe_to_date(value, context="unknown"):
+            """Safely convert any date/datetime to date object"""
+            print(f"DEBUG: safe_to_date called with value={value}, type={type(value)}, context={context}")
+            if value is None:
+                return None
+            if isinstance(value, datetime):
+                result = value.date()
+                print(f"DEBUG: Converted datetime to date: {result}")
+                return result
+            if isinstance(value, DateType):
+                print(f"DEBUG: Already a date object: {value}")
+                return value
+            # If it's something else, try to convert
+            try:
+                if hasattr(value, 'date') and callable(value.date):
+                    result = value.date()
+                    print(f"DEBUG: Called .date() method: {result}")
+                    return result
+            except Exception as e:
+                print(f"DEBUG: Error in safe_to_date fallback: {e}")
+                pass
+            print(f"DEBUG: Returning value as-is: {value}")
+            return value
+
+        deadlines = []
+
+        # Get today as date object - SAFE
+        now = datetime.now()
+        print(f"DEBUG: now = {now}, type = {type(now)}")
+
+        today_date = DateType.today()
+        print(f"DEBUG: today_date = {today_date}, type = {type(today_date)}")
+
+        # Calculate end date - SAFE
+        end_datetime = now + timedelta(days=days)
+        print(f"DEBUG: end_datetime = {end_datetime}, type = {type(end_datetime)}")
+
+        end_date = safe_to_date(end_datetime, "end_date calculation")
+        print(f"DEBUG: end_date = {end_date}, type = {type(end_date)}")
+
+        # 1. Campaign end dates
+        print("DEBUG: Querying campaigns...")
+        campaigns = db.query(Campaign).filter(
+            Campaign.organization_id == organization_id,
+            Campaign.status == 'active',
+            Campaign.end_date >= today_date,
+            Campaign.end_date <= end_date
+        ).order_by(Campaign.end_date).all()
+        print(f"DEBUG: Found {len(campaigns)} campaigns")
+
+        for i, campaign in enumerate(campaigns):
+            print(f"DEBUG: Processing campaign {i+1}/{len(campaigns)}: {campaign.id}")
+            # Get campaign progress
+            raised = db.query(func.sum(Donation.amount)).filter(
+                Donation.campaign_id == campaign.id
+            ).scalar() or 0
+            progress = (float(raised) / float(campaign.goal_amount) * 100) if campaign.goal_amount else 0
+
+            # Safely handle campaign end date
+            print(f"DEBUG: Campaign end_date = {campaign.end_date}, type = {type(campaign.end_date)}")
+            campaign_end_date = safe_to_date(campaign.end_date, f"campaign_{campaign.id}_end_date")
+            if campaign_end_date:
+                days_until = (campaign_end_date - today_date).days
+                print(f"DEBUG: Campaign days_until = {days_until}")
+
+                deadlines.append({
+                    "id": str(campaign.id),
+                    "type": "campaign_end",
+                    "title": f"{campaign.name} ends",
+                    "date": campaign_end_date.isoformat(),
+                    "days_until": days_until,
+                    "priority": "high" if days_until <= 7 else "medium",
+                    "details": {
+                        "progress": round(progress, 1),
+                        "raised": float(raised),
+                        "goal": float(campaign.goal_amount) if campaign.goal_amount else 0
+                    },
+                    "icon": "target"
+                })
+
+        # 2. Tasks due
+        print("DEBUG: Querying tasks...")
+        tasks = db.query(Task).filter(
+            Task.organization_id == organization_id,
+            Task.status.in_(['pending', 'in_progress']),
+            Task.due_date >= today_date,
+            Task.due_date <= end_date
+        ).order_by(Task.due_date).limit(10).all()
+        print(f"DEBUG: Found {len(tasks)} tasks")
+
+        for i, task in enumerate(tasks):
+            print(f"DEBUG: Processing task {i+1}/{len(tasks)}: {task.id}")
+            # Safely handle task due date
+            print(f"DEBUG: Task due_date = {task.due_date}, type = {type(task.due_date)}")
+            task_due_date = safe_to_date(task.due_date, f"task_{task.id}_due_date")
+            if task_due_date:
+                days_until = (task_due_date - today_date).days
+                print(f"DEBUG: Task days_until = {days_until}")
+
+                deadlines.append({
+                    "id": str(task.id),
+                    "type": "task",
+                    "title": task.title,
+                    "date": task_due_date.isoformat(),
+                    "days_until": days_until,
+                    "priority": task.priority,
+                    "details": {
+                        "task_type": task.task_type if hasattr(task, 'task_type') else "general",
+                        "status": task.status
+                    },
+                    "icon": "check-circle"
+                })
+
+        # 3. Major donor anniversaries (donors with gifts > $10,000 last year)
+        print("DEBUG: Calculating anniversary dates...")
+        # Calculate date range for last year - SAFE
+        one_year_ago_dt = now.replace(year=now.year - 1)
+        print(f"DEBUG: one_year_ago_dt = {one_year_ago_dt}, type = {type(one_year_ago_dt)}")
+        one_year_ago_start_dt = one_year_ago_dt - timedelta(days=7)
+        print(f"DEBUG: one_year_ago_start_dt = {one_year_ago_start_dt}, type = {type(one_year_ago_start_dt)}")
+        one_year_ago_end_dt = one_year_ago_dt + timedelta(days=days)
+        print(f"DEBUG: one_year_ago_end_dt = {one_year_ago_end_dt}, type = {type(one_year_ago_end_dt)}")
+
+        # Convert to date objects for query - SAFE
+        one_year_ago_start_date = safe_to_date(one_year_ago_start_dt, "anniversary_start")
+        one_year_ago_end_date = safe_to_date(one_year_ago_end_dt, "anniversary_end")
+        print(f"DEBUG: Anniversary date range: {one_year_ago_start_date} to {one_year_ago_end_date}")
+
+        print("DEBUG: Querying anniversary donations...")
+        anniversary_donations = db.query(Donation).join(Donor).filter(
+            Donation.organization_id == organization_id,
+            Donation.amount >= 10000,
+            Donation.donation_date >= one_year_ago_start_date,
+            Donation.donation_date <= one_year_ago_end_date
+        ).all()
+        print(f"DEBUG: Found {len(anniversary_donations)} anniversary donations")
+
+        for i, donation in enumerate(anniversary_donations):
+            print(f"DEBUG: Processing anniversary donation {i+1}/{len(anniversary_donations)}: {donation.id}")
+            donor = db.query(Donor).filter(Donor.id == donation.donor_id).first()
+            if donor and donation.donation_date:
+                # Safely handle donation date
+                print(f"DEBUG: Donation date = {donation.donation_date}, type = {type(donation.donation_date)}")
+                donation_date_obj = safe_to_date(donation.donation_date, f"donation_{donation.id}_date")
+                if donation_date_obj:
+                    # Create anniversary date for this year
+                    try:
+                        anniversary_date = donation_date_obj.replace(year=now.year)
+                        print(f"DEBUG: Anniversary date = {anniversary_date}")
+                        if anniversary_date >= today_date:
+                            days_until = (anniversary_date - today_date).days
+                            print(f"DEBUG: Anniversary days_until = {days_until}")
+
+                            deadlines.append({
+                                "id": f"anniversary-{donation.id}",
+                                "type": "anniversary",
+                                "title": f"{donor.first_name} {donor.last_name} - Gift Anniversary",
+                                "date": anniversary_date.isoformat(),
+                                "days_until": days_until,
+                                "priority": "medium",
+                                "details": {
+                                    "donor_name": f"{donor.first_name} {donor.last_name}",
+                                    "last_gift": float(donation.amount),
+                                    "donor_id": str(donor.id)
+                                },
+                                "icon": "gift"
+                            })
+                    except ValueError:
+                        # Handle leap year edge case (Feb 29)
+                        pass
+
+        # 4. Stewardship touchpoints (tasks with stewardship type)
+        if hasattr(Task, 'task_type'):
+            stewardship_tasks = db.query(Task).filter(
+                Task.organization_id == organization_id,
+                Task.task_type == 'stewardship',
+                Task.status.in_(['pending', 'in_progress']),
+                Task.due_date >= today_date,
+                Task.due_date <= end_date
+            ).order_by(Task.due_date).all()
+
+            for task in stewardship_tasks:
+                # Avoid duplicates
+                if not any(d['id'] == str(task.id) for d in deadlines):
+                    task_due_date = safe_to_date(task.due_date)
+                    if task_due_date:
+                        days_until = (task_due_date - today_date).days
+
+                        deadlines.append({
+                            "id": str(task.id),
+                            "type": "stewardship",
+                            "title": task.title,
+                            "date": task_due_date.isoformat(),
+                            "days_until": days_until,
+                            "priority": task.priority,
+                            "details": {
+                                "description": task.description
+                            },
+                            "icon": "heart"
+                        })
+
+        # Sort all deadlines by date
+        deadlines.sort(key=lambda x: x['date'])
+
+        # Limit to reasonable number
+        deadlines = deadlines[:15]
+
+        return {
+            "organization_id": str(organization_id),
+            "organization_name": organization.name,
+            "generated_at": now.isoformat(),
+            "period_days": days,
+            "total_count": len(deadlines),
+            "deadlines": deadlines,
+            "summary": {
+                "campaigns_ending": len([d for d in deadlines if d['type'] == 'campaign_end']),
+                "tasks_due": len([d for d in deadlines if d['type'] == 'task']),
+                "anniversaries": len([d for d in deadlines if d['type'] == 'anniversary']),
+                "stewardship": len([d for d in deadlines if d['type'] == 'stewardship'])
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        error_detail = f"Failed to retrieve deadlines: {str(e)}"
+        print(f"Deadlines endpoint error: {error_detail}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=error_detail
+        )
 
 
 def formatCurrency(amount: float) -> str:

@@ -113,7 +113,7 @@ async def get_public_campaigns(
         )
 
         # Calculate days remaining
-        days_remaining = (campaign.end_date - date.today()).days if campaign.end_date else None
+        days_remaining = ((campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date) - date.today()).days if campaign.end_date else None
 
         campaigns_response.append(
             PublicCampaignResponse(
@@ -202,7 +202,7 @@ async def get_public_campaign_detail(
         if campaign.goal_amount and campaign.goal_amount > 0
         else 0
     )
-    days_remaining = (campaign.end_date - date.today()).days if campaign.end_date else None
+    days_remaining = ((campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date) - date.today()).days if campaign.end_date else None
 
     return PublicCampaignResponse(
         id=campaign.id,
@@ -277,7 +277,7 @@ async def get_campaign_statistics(
 
     # Time metrics
     days_active = (date.today() - campaign.start_date).days if campaign.start_date else 0
-    days_remaining = (campaign.end_date - date.today()).days if campaign.end_date else None
+    days_remaining = ((campaign.end_date.date() if isinstance(campaign.end_date, datetime) else campaign.end_date) - date.today()).days if campaign.end_date else None
 
     # Recent activity (last 24 hours)
     yesterday = datetime.utcnow() - timedelta(days=1)

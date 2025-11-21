@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart, ScatterChart, Scatter, ZAxis
 } from 'recharts';
-import { 
-  DollarSign, TrendingUp, Users, Target, Award, Calendar, 
+import {
+  DollarSign, TrendingUp, Users, Target, Award, Calendar,
   CheckCircle, Clock, AlertCircle, TrendingDown, Mail,
-  UserCheck, Activity, FileText, Briefcase, Phone
+  UserCheck, Activity, FileText, Briefcase, Phone, Star, Heart, AlertTriangle
 } from 'lucide-react';
 
 const MajorGiftsDashboardComplete = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOfficer, setSelectedOfficer] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
   const [dashboardData, setDashboardData] = useState({
     movesManagement: [],
     giftGoals: [],
@@ -20,7 +21,13 @@ const MajorGiftsDashboardComplete = () => {
     lastWeekMeetings: [],
     upcomingMeetings: [],
     productivity: [],
-    opportunities: []
+    opportunities: [],
+    // Prioritization data
+    capacityPriority: [],
+    engagementPriority: [],
+    likelihoodPriority: [],
+    portfolioGaps: [],
+    urgencyPriority: []
   });
 
   const API_BASE_URL = '';
@@ -102,7 +109,13 @@ const MajorGiftsDashboardComplete = () => {
         lastWeekRes,
         upcomingRes,
         productivityRes,
-        opportunitiesRes
+        opportunitiesRes,
+        // Prioritization endpoints
+        capacityRes,
+        engagementRes,
+        likelihoodRes,
+        portfolioRes,
+        urgencyRes
       ] = await Promise.all([
         fetchMajorGiftsAPI('moves-management-distribution'),
         fetchMajorGiftsAPI('gift-goals'),
@@ -110,7 +123,13 @@ const MajorGiftsDashboardComplete = () => {
         fetchMajorGiftsAPI('meetings/last-week'),
         fetchMajorGiftsAPI('meetings/upcoming'),
         fetchMajorGiftsAPI('productivity/summary'),
-        fetchMajorGiftsAPI('opportunities', { limit: 50 })
+        fetchMajorGiftsAPI('opportunities', { limit: 50 }),
+        // Prioritization APIs
+        fetchMajorGiftsAPI('prioritization/capacity', { limit: 50 }).catch(() => []),
+        fetchMajorGiftsAPI('prioritization/engagement', { limit: 50 }).catch(() => []),
+        fetchMajorGiftsAPI('prioritization/likelihood', { limit: 50 }).catch(() => []),
+        fetchMajorGiftsAPI('prioritization/portfolio-gaps').catch(() => []),
+        fetchMajorGiftsAPI('prioritization/urgency', { limit: 50 }).catch(() => [])
       ]);
 
       setDashboardData({
@@ -120,7 +139,12 @@ const MajorGiftsDashboardComplete = () => {
         lastWeekMeetings: lastWeekRes || [],
         upcomingMeetings: upcomingRes || [],
         productivity: productivityRes || [],
-        opportunities: opportunitiesRes || []
+        opportunities: opportunitiesRes || [],
+        capacityPriority: capacityRes || [],
+        engagementPriority: engagementRes || [],
+        likelihoodPriority: likelihoodRes || [],
+        portfolioGaps: portfolioRes || [],
+        urgencyPriority: urgencyRes || []
       });
 
       setLoading(false);
@@ -160,7 +184,11 @@ const MajorGiftsDashboardComplete = () => {
     );
   }
 
-  const { movesManagement, giftGoals, proposals, lastWeekMeetings, upcomingMeetings, productivity, opportunities } = dashboardData;
+  const {
+    movesManagement, giftGoals, proposals, lastWeekMeetings, upcomingMeetings,
+    productivity, opportunities, capacityPriority, engagementPriority,
+    likelihoodPriority, portfolioGaps, urgencyPriority
+  } = dashboardData;
 
   // Calculate aggregate metrics
   const totalDonorsManaged = movesManagement.reduce((sum, officer) => sum + officer.total_donors, 0);
@@ -216,11 +244,73 @@ const MajorGiftsDashboardComplete = () => {
     return acc;
   }, {});
 
+  // Prioritization chart data
+  const capacityChartData = capacityPriority.slice(0, 10).map(d => ({
+    name: d.donor_name.split(' ')[0],
+    capacity: d.estimated_capacity / 1000,
+    utilization: d.capacity_utilization,
+    score: d.capacity_score
+  }));
+
+  const engagementChartData = engagementPriority.slice(0, 10).map(d => ({
+    name: d.donor_name.split(' ')[0],
+    score: d.engagement_score,
+    meetings: d.meetings_last_12mo,
+    events: d.events_attended
+  }));
+
+  const likelihoodChartData = likelihoodPriority.slice(0, 10).map(d => ({
+    name: d.donor_name.split(' ')[0],
+    likelihood: d.likelihood_score,
+    predicted: d.predicted_gift_amount / 1000
+  }));
+
+  const portfolioChartData = portfolioGaps.map(g => ({
+    name: g.officer_name.split(' ')[0],
+    current: g.current_portfolio_size,
+    target: g.target_portfolio_size,
+    gap: g.portfolio_gap
+  }));
+
+  const urgencyChartData = urgencyPriority.slice(0, 10).map(d => ({
+    name: d.donor_name.split(' ')[0],
+    score: d.urgency_score,
+    lapsed: Math.min(d.lapsed_days, 365)
+  }));
+
+  // Tier distributions for pie charts
+  const capacityTierData = capacityPriority.reduce((acc, d) => {
+    acc[d.capacity_tier] = (acc[d.capacity_tier] || 0) + 1;
+    return acc;
+  }, {});
+  const capacityPieData = Object.entries(capacityTierData).map(([name, value]) => ({ name, value }));
+
+  const engagementTierData = engagementPriority.reduce((acc, d) => {
+    acc[d.engagement_tier] = (acc[d.engagement_tier] || 0) + 1;
+    return acc;
+  }, {});
+  const engagementPieData = Object.entries(engagementTierData).map(([name, value]) => ({ name, value }));
+
+  const urgencyTierData = urgencyPriority.reduce((acc, d) => {
+    acc[d.urgency_tier] = (acc[d.urgency_tier] || 0) + 1;
+    return acc;
+  }, {});
+  const urgencyPieData = Object.entries(urgencyTierData).map(([name, value]) => ({ name, value }));
+
+  // Priority colors
+  const PRIORITY_COLORS = {
+    capacity: '#3b82f6',
+    engagement: '#10b981',
+    likelihood: '#f59e0b',
+    portfolio: '#8b5cf6',
+    urgency: '#ef4444'
+  };
+
   return (
     <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
-      {/* Header with Officer Filter */}
+      {/* Header with Officer Filter and Tab Navigation */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Major Gifts Dashboard</h1>
             <p className="text-gray-600 mt-1">Comprehensive view of major gift development activities</p>
@@ -245,8 +335,36 @@ const MajorGiftsDashboardComplete = () => {
             </button>
           </div>
         </div>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-2 border-t pt-4">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'overview'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Activity className="w-4 h-4 inline mr-2" />
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('prioritization')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'prioritization'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Star className="w-4 h-4 inline mr-2" />
+            Prioritization Models
+          </button>
+        </div>
       </div>
 
+      {activeTab === 'overview' && (
+      <>
       {/* Top-Level KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -700,6 +818,374 @@ const MajorGiftsDashboardComplete = () => {
           )}
         </div>
       </div>
+      </>
+      )}
+
+      {activeTab === 'prioritization' && (
+        <>
+          {/* Prioritization Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="w-5 h-5 text-blue-600" />
+                <span className="font-medium text-gray-700">By Capacity</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{capacityPriority.length}</p>
+              <p className="text-xs text-gray-500">donors scored</p>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Heart className="w-5 h-5 text-green-600" />
+                <span className="font-medium text-gray-700">By Engagement</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{engagementPriority.length}</p>
+              <p className="text-xs text-gray-500">donors scored</p>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-5 h-5 text-amber-600" />
+                <span className="font-medium text-gray-700">By Likelihood</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{likelihoodPriority.length}</p>
+              <p className="text-xs text-gray-500">donors scored</p>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-5 h-5 text-purple-600" />
+                <span className="font-medium text-gray-700">Portfolio Gaps</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{portfolioGaps.length}</p>
+              <p className="text-xs text-gray-500">officers analyzed</p>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <span className="font-medium text-gray-700">By Urgency</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{urgencyPriority.filter(d => d.urgency_tier === 'Critical').length}</p>
+              <p className="text-xs text-gray-500">critical actions</p>
+            </div>
+          </div>
+
+          {/* 1. Priority by Capacity */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-blue-600" />
+              Priority by Capacity
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">Top Donors by Estimated Capacity</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={capacityChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" fontSize={11} />
+                    <YAxis fontSize={11} />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        name === 'capacity' ? `$${value}K` : `${value}%`,
+                        name === 'capacity' ? 'Est. Capacity' : 'Utilization'
+                      ]}
+                    />
+                    <Legend />
+                    <Bar dataKey="capacity" name="Capacity ($K)" fill={PRIORITY_COLORS.capacity} />
+                    <Bar dataKey="utilization" name="Utilization %" fill="#93c5fd" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">Distribution by Capacity Tier</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={capacityPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {capacityPieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-gray-600 mb-3">Top 5 by Capacity Score</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2">Donor</th>
+                      <th className="text-right py-2">Est. Capacity</th>
+                      <th className="text-right py-2">Lifetime</th>
+                      <th className="text-right py-2">Utilization</th>
+                      <th className="text-right py-2">Recommended Ask</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {capacityPriority.slice(0, 5).map((d, idx) => (
+                      <tr key={idx} className="border-b border-gray-100">
+                        <td className="py-2 font-medium">{d.donor_name}</td>
+                        <td className="text-right py-2">${d.estimated_capacity?.toLocaleString()}</td>
+                        <td className="text-right py-2">${d.lifetime_giving?.toLocaleString()}</td>
+                        <td className="text-right py-2">{d.capacity_utilization?.toFixed(1)}%</td>
+                        <td className="text-right py-2 font-bold text-blue-600">${d.recommended_ask?.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Priority by Engagement */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Heart className="w-5 h-5 text-green-600" />
+              Priority by Engagement
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">Engagement Scores</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={engagementChartData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" domain={[0, 100]} />
+                    <YAxis dataKey="name" type="category" fontSize={11} width={60} />
+                    <Tooltip />
+                    <Bar dataKey="score" name="Engagement Score" fill={PRIORITY_COLORS.engagement} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">Distribution by Engagement Tier</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={engagementPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {engagementPieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-gray-600 mb-3">Cold Donors Needing Re-engagement</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {engagementPriority.filter(d => d.engagement_tier === 'Cold').slice(0, 6).map((d, idx) => (
+                  <div key={idx} className="p-3 bg-red-50 rounded-lg border border-red-200">
+                    <p className="font-medium text-gray-900">{d.donor_name}</p>
+                    <p className="text-sm text-gray-600">{d.days_since_contact} days since contact</p>
+                    <p className="text-xs text-red-600 mt-1">Score: {d.engagement_score}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Priority by Predicted Likelihood */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-amber-600" />
+              Priority by Predicted Likelihood
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">Likelihood vs Predicted Gift</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ScatterChart>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="likelihood" name="Likelihood" unit="%" domain={[0, 100]} />
+                    <YAxis dataKey="predicted" name="Predicted" unit="K" />
+                    <ZAxis range={[50, 400]} />
+                    <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                    <Scatter name="Donors" data={likelihoodChartData} fill={PRIORITY_COLORS.likelihood} />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">High Likelihood Donors (80+)</h3>
+                <div className="space-y-3 max-h-72 overflow-y-auto">
+                  {likelihoodPriority.filter(d => d.likelihood_score >= 80).slice(0, 8).map((d, idx) => (
+                    <div key={idx} className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-gray-900">{d.donor_name}</p>
+                          <p className="text-xs text-gray-600">{d.recommended_action}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-amber-600">{d.likelihood_score}%</p>
+                          <p className="text-xs text-gray-500">${d.predicted_gift_amount?.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {d.key_indicators?.slice(0, 2).map((ind, i) => (
+                          <span key={i} className="text-xs px-2 py-1 bg-white rounded text-gray-600">{ind}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Priority by Portfolio Gaps */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Users className="w-5 h-5 text-purple-600" />
+              Priority by Portfolio Gaps
+            </h2>
+            {portfolioGaps.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-600 mb-3">Current vs Target Portfolio Size</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={portfolioChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" fontSize={11} />
+                      <YAxis fontSize={11} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="current" name="Current" fill={PRIORITY_COLORS.portfolio} />
+                      <Bar dataKey="target" name="Target" fill="#c4b5fd" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-600 mb-3">Officer Portfolio Health</h3>
+                  <div className="space-y-3 max-h-72 overflow-y-auto">
+                    {portfolioGaps.map((g, idx) => {
+                      const fillRate = (g.current_portfolio_size / g.target_portfolio_size * 100);
+                      return (
+                        <div key={idx} className={`p-3 rounded-lg border ${fillRate < 70 ? 'bg-red-50 border-red-200' : fillRate < 90 ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium text-gray-900">{g.officer_name}</span>
+                            <span className={`text-sm font-bold ${fillRate < 70 ? 'text-red-600' : fillRate < 90 ? 'text-yellow-600' : 'text-green-600'}`}>
+                              {fillRate.toFixed(0)}% filled
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${fillRate < 70 ? 'bg-red-500' : fillRate < 90 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                              style={{ width: `${Math.min(fillRate, 100)}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-600 mt-2">
+                            {g.current_portfolio_size} / {g.target_portfolio_size} donors • Gap: {g.portfolio_gap}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-center text-gray-500 py-8">No portfolio gap data available</p>
+            )}
+          </div>
+
+          {/* 5. Priority by Urgency/Timing */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              Priority by Urgency / Timing
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">Urgency Scores</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={urgencyChartData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" domain={[0, 100]} />
+                    <YAxis dataKey="name" type="category" fontSize={11} width={60} />
+                    <Tooltip />
+                    <Bar dataKey="score" name="Urgency Score" fill={PRIORITY_COLORS.urgency} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-600 mb-3">Distribution by Urgency Level</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={urgencyPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {urgencyPieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={
+                          entry.name === 'Critical' ? '#ef4444' :
+                          entry.name === 'High' ? '#f97316' :
+                          entry.name === 'Medium' ? '#f59e0b' : '#22c55e'
+                        } />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-gray-600 mb-3">Critical Actions Required</h3>
+              <div className="space-y-3">
+                {urgencyPriority.filter(d => d.urgency_tier === 'Critical' || d.urgency_tier === 'High').slice(0, 6).map((d, idx) => (
+                  <div key={idx} className={`p-4 rounded-lg border ${d.urgency_tier === 'Critical' ? 'bg-red-50 border-red-300' : 'bg-orange-50 border-orange-300'}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 text-xs font-bold rounded ${d.urgency_tier === 'Critical' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>
+                            {d.urgency_tier}
+                          </span>
+                          <span className="font-medium text-gray-900">{d.donor_name}</span>
+                        </div>
+                        <p className="text-sm text-gray-700 mt-2">{d.recommended_action}</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {d.urgency_reasons?.map((reason, i) => (
+                            <span key={i} className="text-xs px-2 py-1 bg-white rounded text-gray-600">{reason}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="text-2xl font-bold text-gray-900">{d.urgency_score}</p>
+                        <p className="text-xs text-gray-500">score</p>
+                        {d.action_deadline && (
+                          <p className="text-xs text-red-600 mt-1">
+                            Due: {new Date(d.action_deadline).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

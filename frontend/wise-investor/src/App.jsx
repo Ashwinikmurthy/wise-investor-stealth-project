@@ -10,17 +10,25 @@ import Login from './components/Auth/Loginpage';
 import RegisterStaff from './components/Auth/RegisterStaff';
 import RegisterDonor from './components/Auth/RegisterDonor';
 import RegisterOrg from './components/Auth/RegisterUpdated'
+import ProgramImpactDashboard from './components/analytics/EnhancedProgramImpactDashboard';
 //import Dashboard from './components/Dashboard/ComprehensiveAnalytics_UTD_colors';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminCreateStaff from './components/Auth/AdminCreateStaff'
 import InviteUser from './components/Auth/InviteUser';
 import DonationPage from './components/DonationPage';
+import FinancialDashBoard from './components/analytics/FinancialHealthDashboard'
 import RegisterUserRequest from './components/Auth/RegisterUserRequest';
 import UserRegistrationAdmin from './components/Auth/UserRegistrationAdmin';
 import CompleteInvitation from './components/Auth/CompleteInvitation';
 import DonorPortalWithAPI from './components/DonorportalUpdated'
+import PredictiveCampaignDashboard from './components/analytics/EnhancedCampaignDashboard'
 //import RegisterOrg from './components/Auth/RegisterUpdated'
+import DonorAnalyticsDashboard from './components/analytics/DonorAnalyticsDashboard';
+import CampaignPerformanceDashboard from './components/analytics/CampaignperformanceDashboard';
+import MajorGiftsDashboard from './components/analytics/MajorGiftsDashboard';
+import EngagementInsightsDashboard from './components/analytics/DonorEngagementDashboard';
 import Dashboard from './components/Dashboard/ComprehensiveAnalytics_UTD_colors';
+import ExecutiveDashboard from './components/Dashboard/NewExecutiveDashBoard';
 //import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -39,7 +47,15 @@ function App() {
 	            <Route path="/register-user" element={<RegisterUserRequest />} />
 <Route path="/admin/registration-requests" element={<UserRegistrationAdmin />} />
 	   <Route path="/donor-portal" element={<DonorPortalWithAPI />} />
-	  //<Route path="/register-staff" element={<RegisterStaff />} />
+	  <Route path="/register-staff" element={<RegisterStaff />} />
+	  <Route path="/analytics/predictive_campaign" element={<PredictiveCampaignDashboard />} />
+	  <Route path="/analytics/finhealth" element={<FinancialDashBoard />} />
+	  <Route path="/analytics/donors" element={<DonorAnalyticsDashboard />} />
+	   <Route path="/analytics/executiveDashboard" element={<ExecutiveDashboard />} />
+       <Route path="/analytics/campaigns" element={<CampaignPerformanceDashboard />} />
+      <Route path="/analytics/major-gifts" element={<MajorGiftsDashboard />} />
+      <Route path="/analytics/engagement" element={<EngagementInsightsDashboard />} />
+       <Route path="/analytics/program-impact" element={<ProgramImpactDashboard />} />
 		    //<Route path="/complete-invitation" element={<CompleteInvitation />} />
 	  <Route path="/donor-portal/donate/:id" element={<DonationPage />} />  {/* ← NEW */}
 		      <Route 

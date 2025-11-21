@@ -10,6 +10,8 @@ from user_management.superadmin_api import router as superadmin_router
 from user_management.auth_route import router as auth_router
 from user_management.user_management_api import router as user_management_router
 from analytics.analytics import router as analytics_router
+from ai_analytics.strategic_planning_analytics import router as strategicplanningrouter
+from ai_analytics.quick_actions_api import router as quickactionrouter
 #from timeline_analytics import router as timeline_router
 from analytics.new_donor_analytics import router as donor_router
 from analytics.new_extra_analytics import router as extra_router
@@ -24,6 +26,8 @@ from Donation.donation_router import router as donations_org_router
 from Donation.programs_router import router as programsrouter
 from events.events_api import router as events_router
 from campaign.campaign_analytics import router as campaign_analytics_router
+from analytics.donor_intelligence import router as donintrouter
+from majorgifts.major_gifts_prioritization import router as majorgiftspriorouter
 #from user_management.registration_router import router as reg_router
 from user_management.user_registration_api import router as reg_router
 #from majorgifts.major_gifts_main_router import major_gifts_router as majorgiftsrouter
@@ -33,6 +37,21 @@ from majorgifts.major_gifts_api_part2 import router as part2router
 from majorgifts.major_gifts_api_part3 import router as part3router
 from analytics.dashboard_endpoints import router as dashboard_router
 from analytics.analytics_timeline import router as timeline_router
+from analytics.cashflow_churn_api import router as cashflow_router
+from analytics.donor_analytics_enhanced import router as enhanced_router
+from analytics.golden_triangle_whatif_api import router as golden_router
+from analytics.p2sg_dashboard_api import router as p2sg_router
+from analytics.second_gift_api import router as second_router
+from ai_analytics.feedback_extra_analytics import router as feedbackrouter
+from analytics.wise_investor_analytics import router as wise_router
+from analytics.predictiveanalytics import  router as predrouter
+from analytics.engagement_analytics import router as engagerouter
+from analytics.campaignpredictiveanalytics import router as camppredrouter
+from analytics.campaign_new_analytics import router as campanalyticsrouter
+from ai_analytics.impact_analytics import router as impactrouter
+from analytics.major_gifts_api import router as giftsrouter
+from analytics.programimpactanalytics import router as proganalytisrouter
+from ai_analytics.financial_analytics import router as finhealthrouter
 import uvicorn
 from campaign.public_campaign_router import router as public_campaign_router
 from database import get_db, engine, Base
@@ -162,6 +181,21 @@ app.include_router(user_management_router)
 app.include_router(events_router)
 app.include_router(analytics_router)
 app.include_router(high_impact_router)
+app.include_router(cashflow_router)
+app.include_router(golden_router)
+app.include_router(campanalyticsrouter)
+app.include_router(enhanced_router)
+app.include_router(second_router)
+app.include_router(finhealthrouter)
+app.include_router(impactrouter)
+app.include_router(feedbackrouter)
+app.include_router(majorgiftspriorouter)
+app.include_router(quickactionrouter)
+app.include_router(strategicplanningrouter)
+app.include_router(p2sg_router)
+app.include_router(wise_router)
+app.include_router(predrouter)
+app.include_router(proganalytisrouter)
 app.include_router(campaign_analytics_router)
 app.include_router(donor_router)
 app.include_router(extra_router)
@@ -174,12 +208,15 @@ app.include_router(reg_router)
 app.include_router(timeline_router)
 app.include_router(programsrouter)
 app.include_router(donations_org_router)
+app.include_router(engagerouter)
+app.include_router(camppredrouter)
 app.include_router(puborgrouter)
 app.include_router(dashboard_router)
 #app.include_router(part3router)
 app.include_router(public_campaign_router)
 app.include_router(donations_router)
-
+app.include_router(donintrouter)
+app.include_router(giftsrouter)
 
 @app.get("/", tags=["Root"])
 async def root():

@@ -1,0 +1,1265 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import ReactECharts from 'echarts-for-react';
+import {
+  BarChart3, TrendingUp, DollarSign, Target, Calendar, Award,
+  ArrowUp, ArrowDown, Activity, Download, Filter, ChevronRight, ChevronLeft,
+  Clock, CheckCircle, AlertTriangle, RefreshCw, Zap, PieChart,
+  Percent, Users, GitBranch, Gift, TrendingDown
+} from 'lucide-react';
+
+// UT Dallas Color Palette
+const COLORS = {
+  primary: '#e87500',
+  secondary: '#154734',
+  accent: '#5fe0b7',
+  danger: '#ef4444',
+  warning: '#f59e0b',
+  success: '#10b981',
+  info: '#3b82f6',
+  gray: {
+    50: '#f9fafb',
+    100: '#f3f4f6',
+    200: '#e5e7eb',
+    300: '#d1d5db',
+    600: '#4b5563',
+    700: '#374151',
+    800: '#1f2937',
+    900: '#111827',
+  }
+};
+
+const CampaignPerformanceDashboard = () => {
+  const { getToken } = useAuth();
+  const navigate = useNavigate();
+  const organizationId = '772effb4-35a3-40c6-8555-4d8c732cf656';
+
+  const [dashboardData, setDashboardData] = useState({
+    activeCampaigns: null,
+    roiAnalysis: null,
+    costAnalysis: null,
+    revenueBySource: null,
+    forecastData: null,
+    benchmarks: null,
+    attribution: null,
+    participationMetrics: null,
+    abTestResults: null,
+    matchingGifts: null,
+    loading: true,
+    error: null
+  });
+
+  const [timeRange, setTimeRange] = useState('365d');
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+
+  // Empty State Component for Charts
+  const EmptyChartState = ({ title, message }) => (
+    <div className="h-80 flex flex-col items-center justify-center" style={{ color: COLORS.gray[500] }}>
+      <AlertTriangle className="h-12 w-12 mb-3" style={{ color: COLORS.gray[400] }} />
+      <p className="text-lg font-semibold mb-2" style={{ color: COLORS.gray[600] }}>{title}</p>
+      <p className="text-sm text-center max-w-md">{message}</p>
+      <button
+        onClick={fetchCampaignData}
+        className="mt-4 px-4 py-2 rounded-lg border font-medium hover:bg-gray-50 flex items-center gap-2"
+        style={{ borderColor: COLORS.gray[300], color: COLORS.gray[700] }}
+      >
+        <RefreshCw className="h-4 w-4" />
+        Refresh Data
+      </button>
+    </div>
+  );
+
+
+  useEffect(() => {
+    fetchCampaignData();
+  }, [timeRange]);
+
+
+  const fetchCampaignData = async () => {
+    try {
+      setDashboardData(prev => ({ ...prev, loading: true, error: null }));
+      const token = await getToken();
+      const baseUrl = '';
+
+      const [
+        activeRes, roiRes, costRes, revenueSourceRes, forecastRes,
+        benchmarkRes, attributionRes, participationRes, abTestRes, matchingRes
+      ] = await Promise.all([
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/active/${organizationId}?range=${timeRange}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }),
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/roi-analysis/${organizationId}?range=${timeRange}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }),
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/cost-analysis/${organizationId}?range=${timeRange}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }),
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/revenue-by-source/${organizationId}?range=${timeRange}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }),
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/revenue-forecast/${organizationId}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }),
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/benchmarks/${organizationId}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }),
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/attribution/${organizationId}?range=${timeRange}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }),
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/participation-rates/${organizationId}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }),
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/ab-tests/${organizationId}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        }),
+        fetch(`${baseUrl}/api/v1/analytics/campaigns/matching-gifts/${organizationId}?range=${timeRange}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        })
+      ]);
+
+      if (!activeRes.ok || !roiRes.ok) {
+        throw new Error('Failed to fetch campaign data');
+      }
+
+      const [
+        activeCampaigns, roiAnalysis, costAnalysis, revenueBySource,
+        forecastData, benchmarks, attribution, participationMetrics,
+        abTestResults, matchingGifts
+      ] = await Promise.all([
+        activeRes.json(),
+        roiRes.json(),
+        costRes.ok ? costRes.json() : null,
+        revenueSourceRes.ok ? revenueSourceRes.json() : null,
+        forecastRes.ok ? forecastRes.json() : null,
+        benchmarkRes.ok ? benchmarkRes.json() : null,
+        attributionRes.ok ? attributionRes.json() : null,
+        participationRes.ok ? participationRes.json() : null,
+        abTestRes.ok ? abTestRes.json() : null,
+        matchingRes.ok ? matchingRes.json() : null
+      ]);
+
+      setDashboardData({
+        activeCampaigns,
+        roiAnalysis,
+        costAnalysis,
+        revenueBySource,
+        forecastData,
+        benchmarks,
+        attribution,
+        participationMetrics,
+        abTestResults,
+        matchingGifts,
+        loading: false,
+        error: null
+      });
+    } catch (error) {
+      console.error('Error fetching campaign data:', error);
+      setDashboardData(prev => ({
+        ...prev,
+        loading: false,
+        error: error.message
+      }));
+    }
+  };
+
+  // Campaign Progress Chart
+  const getCampaignProgressChart = () => {
+    if (!dashboardData.activeCampaigns?.campaigns) return {};
+
+    const campaigns = dashboardData.activeCampaigns.campaigns;
+    const names = campaigns.map(c => c.name);
+    const raised = campaigns.map(c => c.raised_amount / 1000);
+    const goals = campaigns.map(c => c.goal_amount / 1000);
+
+    return {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (params) => {
+          const raisedVal = params[0].value;
+          const goalVal = params[1].value;
+          const progress = (raisedVal / goalVal * 100).toFixed(1);
+          return `<strong>${params[0].name}</strong><br/>
+                  Raised: $${raisedVal.toFixed(1)}K<br/>
+                  Goal: $${goalVal.toFixed(1)}K<br/>
+                  Progress: ${progress}%`;
+        }
+      },
+      legend: {
+        data: ['Raised', 'Goal'],
+        textStyle: { color: COLORS.gray[700] },
+        top: 0
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '10%',
+        top: '15%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        data: names,
+        axisLabel: {
+          color: COLORS.gray[600],
+          rotate: 0,
+          fontSize: 11,
+          interval: 0,
+          formatter: (value) => {
+            // Truncate long names
+            return value.length > 20 ? value.substring(0, 20) + '...' : value;
+          }
+        },
+        axisTick: {
+          alignWithLabel: true
+        }
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: {
+          color: COLORS.gray[600],
+          formatter: '${value}K'
+        }
+      },
+      series: [
+        {
+          name: 'Raised',
+          type: 'bar',
+          data: raised,
+          itemStyle: {
+            color: COLORS.primary,
+            borderRadius: [4, 4, 0, 0]
+          },
+          label: {
+            show: true,
+            position: 'top',
+            formatter: (params) => `$${params.value.toFixed(1)}K`,
+            color: COLORS.gray[800],
+            fontSize: 11,
+            fontWeight: '600'
+          },
+          barMaxWidth: 60
+        },
+        {
+          name: 'Goal',
+          type: 'bar',
+          data: goals,
+          itemStyle: {
+            color: COLORS.gray[300],
+            borderRadius: [4, 4, 0, 0]
+          },
+          label: {
+            show: false
+          },
+          barMaxWidth: 60
+        }
+      ]
+    };
+  };
+
+   const getRevenueForecastChart = () => {
+      if (!dashboardData.forecastData) return {};
+
+      const forecastData = dashboardData.forecastData;
+
+      // Combine historical and forecast data
+      const allData = [
+        ...(forecastData.historical_data || []),
+        ...(forecastData.forecast_data || [])
+      ];
+
+      if (allData.length === 0) return {};
+
+      const periods = allData.map(f => f.period);
+      const actual = allData.map(f => f.actual ? f.actual / 1000 : null);
+      const predicted = allData.map(f => f.predicted / 1000);
+      const upperBound = allData.map(f => f.upper_bound ? f.upper_bound / 1000 : null);
+      const lowerBound = allData.map(f => f.lower_bound ? f.lower_bound / 1000 : null);
+
+      return {
+        tooltip: {
+          trigger: 'axis',
+          formatter: (params) => {
+            let result = `${params[0].name}<br/>`;
+            params.forEach(param => {
+              if (param.value !== null && param.value !== undefined) {
+                result += `${param.seriesName}: $${param.value.toFixed(1)}K<br/>`;
+              }
+            });
+            return result;
+          }
+        },
+        legend: {
+          data: ['Actual', 'Predicted', 'Confidence Range'],
+          textStyle: { color: COLORS.gray[700] },
+          top: 0
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '15%',
+          top: '12%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: periods,
+          axisLabel: {
+            color: COLORS.gray[600],
+            rotate: 45,
+            fontSize: 10,
+            interval: 'auto',
+            margin: 10,
+            formatter: (value) => {
+              // Format period nicely (e.g., "2024-11" -> "Nov 24")
+              const [year, month] = value.split('-');
+              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              return `${monthNames[parseInt(month) - 1]} ${year.slice(2)}`;
+            }
+          },
+          axisTick: {
+            alignWithLabel: true
+          }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: {
+            color: COLORS.gray[600],
+            formatter: '${value}K'
+          }
+        },
+        series: [
+          {
+            name: 'Actual',
+            type: 'line',
+            smooth: true,
+            data: actual,
+            itemStyle: { color: COLORS.success },
+            lineStyle: { width: 3 },
+            symbol: 'circle',
+            symbolSize: 6,
+            connectNulls: false
+          },
+          {
+            name: 'Predicted',
+            type: 'line',
+            smooth: true,
+            data: predicted,
+            itemStyle: { color: COLORS.info },
+            lineStyle: {
+              width: 2,
+              type: 'dashed'
+            },
+            symbol: 'circle',
+            symbolSize: 6
+          },
+          {
+            name: 'Confidence Range',
+            type: 'line',
+            data: upperBound,
+            lineStyle: {
+              opacity: 0
+            },
+            stack: 'confidence-band',
+            symbol: 'none',
+            showSymbol: false
+          },
+          {
+            name: 'Confidence Range',
+            type: 'line',
+            data: lowerBound.map((val, idx) => upperBound[idx] && val ? upperBound[idx] - val : null),
+            lineStyle: {
+              opacity: 0
+            },
+            areaStyle: {
+              color: 'rgba(59, 130, 246, 0.1)'
+            },
+            stack: 'confidence-band',
+            symbol: 'none',
+            showSymbol: false,
+            tooltip: {
+              show: false
+            }
+          }
+        ]
+      };
+    };
+
+    // Revenue by Source Chart - NEW
+    const getRevenueBySourceChart = () => {
+      if (!dashboardData.revenueBySource?.sources) return {};
+
+      const sources = dashboardData.revenueBySource.sources;
+      const totalRevenue = sources.reduce((sum, s) => sum + s.revenue, 0);
+
+      return {
+        tooltip: {
+          trigger: 'item',
+          formatter: (params) => {
+            return `<strong>${params.name}</strong><br/>
+                    Amount: $${params.value.toFixed(2)}<br/>
+                    Percentage: ${params.percent.toFixed(1)}%`;
+          }
+        },
+        legend: {
+          orient: 'vertical',
+          left: '5%',
+          top: 'center',
+          textStyle: {
+            color: COLORS.gray[700],
+            fontSize: 13
+          },
+          itemGap: 15
+        },
+        series: [{
+          type: 'pie',
+          radius: ['45%', '75%'],
+          center: ['60%', '50%'],
+          avoidLabelOverlap: true,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: '#fff',
+            borderWidth: 3
+          },
+          label: {
+            show: true,
+            position: 'outside',
+            formatter: '{d}%',
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: COLORS.gray[800]
+          },
+          labelLine: {
+            show: true,
+            length: 15,
+            length2: 10,
+            smooth: true
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: 16,
+              fontWeight: 'bold'
+            },
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.3)'
+            }
+          },
+          data: sources.map((source, idx) => ({
+            value: source.revenue,
+            name: source.source.replace('_', ' '),
+            itemStyle: {
+              color: [
+                COLORS.primary,
+                COLORS.secondary,
+                COLORS.accent,
+                COLORS.info,
+                COLORS.warning,
+                COLORS.success
+              ][idx % 6]
+            }
+          }))
+        }]
+      };
+    };
+
+    // Multi-Channel Attribution Chart - NEW
+    const getAttributionChart = () => {
+      if (!dashboardData.attribution?.channels) return {};
+
+      const channels = dashboardData.attribution.channels;
+      const names = channels.map(c => c.channel);
+      const revenue = channels.map(c => c.total_revenue / 1000);
+      const costs = channels.map(c => c.cost);
+
+      return {
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'shadow' },
+          formatter: (params) => {
+            let tooltip = `<strong>${params[0].axisValue}</strong><br/>`;
+            params.forEach(param => {
+              const value = param.seriesName === 'Cost' ?
+                `$${param.value.toFixed(2)}` :
+                `$${param.value.toFixed(2)}K`;
+              tooltip += `${param.marker} ${param.seriesName}: ${value}<br/>`;
+            });
+            return tooltip;
+          }
+        },
+        legend: {
+          data: ['Revenue', 'Cost'],
+          textStyle: { color: COLORS.gray[700] },
+          top: 0
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '15%',
+          top: '12%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: names,
+          axisLabel: {
+            color: COLORS.gray[600],
+            rotate: 45,
+            fontSize: 11,
+            interval: 0
+          }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: {
+            color: COLORS.gray[600],
+            formatter: '${value}K'
+          }
+        },
+        series: [
+          {
+            name: 'Revenue',
+            type: 'bar',
+            data: revenue,
+            itemStyle: {
+              color: COLORS.primary,
+              borderRadius: [4, 4, 0, 0]
+            }
+          },
+          {
+            name: 'Cost',
+            type: 'bar',
+            data: costs,
+            itemStyle: {
+              color: COLORS.secondary,
+              borderRadius: [4, 4, 0, 0]
+            }
+          }
+        ]
+      };
+    };
+
+    // Cost per Acquisition Chart - NEW
+    const getCostPerAcquisitionChart = () => {
+      // Try costAnalysis first, fallback to roiAnalysis which has donor_acquisition_cost
+      const campaignsData = dashboardData.costAnalysis?.campaigns || dashboardData.roiAnalysis?.campaigns;
+
+      if (!campaignsData || campaignsData.length === 0) return {};
+
+      const cpa = campaignsData;
+      const names = cpa.map(c => c.campaign_name);
+      // Calculate CPA from available data: total_cost / total_donors
+      const costs = cpa.map(c => {
+        // Try multiple possible field names
+        const cpaValue = c.cost_per_acquisition ||
+                        c.donor_acquisition_cost ||
+                        c.cost_per_donor ||
+                        c.average_cost_per_donor ||
+                        (c.total_cost && c.donor_count ? c.total_cost / c.donor_count : 0) ||
+                        (c.campaign_cost && c.donors ? c.campaign_cost / c.donors : 0);
+        return parseFloat(cpaValue || 0);
+      });
+
+      // Check if all costs are 0, which means we don't have valid CPA data
+      const hasValidData = costs.some(cost => cost > 0);
+      if (!hasValidData) {
+        console.warn('CPA Chart: No valid cost per acquisition data found in campaigns');
+      }
+      const industry_avg = dashboardData.costAnalysis?.industry_average_cpa ||
+                          dashboardData.costAnalysis?.efficiency_benchmarks?.target_cost_per_dollar * 1000 ||
+                          dashboardData.roiAnalysis?.efficiency_benchmarks?.target_cost_per_dollar * 1000 ||
+                          5000; // Reasonable default for donor acquisition
+
+      return {
+        tooltip: {
+          trigger: 'axis',
+          formatter: (params) => {
+            return `<strong>${params[0].name}</strong><br/>
+                    CPA: $${params[0].value.toFixed(2)}<br/>
+                    Industry Avg: $${industry_avg.toFixed(2)}`;
+          }
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '10%',
+          top: '10%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: names,
+          axisLabel: {
+            color: COLORS.gray[600],
+            rotate: 0,
+            fontSize: 11,
+            interval: 0,
+            formatter: (value) => {
+              return value.length > 20 ? value.substring(0, 20) + '...' : value;
+            }
+          }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: {
+            color: COLORS.gray[600],
+            formatter: (value) => `$${value.toFixed(0)}`
+          }
+        },
+        series: [
+          {
+            name: 'CPA',
+            type: 'bar',
+            data: costs,
+            itemStyle: {
+              color: (params) => {
+                return params.value < industry_avg ? COLORS.success : COLORS.warning;
+              },
+              borderRadius: [4, 4, 0, 0]
+            },
+            label: {
+              show: true,
+              position: 'top',
+              formatter: (params) => `$${params.value.toFixed(2)}`,
+              color: COLORS.gray[800],
+              fontSize: 11,
+              fontWeight: '600'
+            },
+            barMaxWidth: 60,
+            markLine: {
+              silent: true,
+              data: [{
+                type: 'average',
+                name: 'Industry Avg',
+                yAxis: industry_avg,
+                lineStyle: {
+                  color: COLORS.danger,
+                  type: 'dashed',
+                  width: 2
+                },
+                label: {
+                  formatter: (params) => `Industry: $${params.value.toFixed(2)}`,
+                  position: 'end',
+                  color: COLORS.danger,
+                  fontSize: 11
+                }
+              }]
+            }
+          }
+        ]
+      };
+    };
+  // ROI Comparison Chart
+  const getROIComparisonChart = () => {
+    if (!dashboardData.roiAnalysis?.campaigns) return {};
+
+    const roi = dashboardData.roiAnalysis.campaigns;
+    const names = roi.map(r => r.campaign_name);
+    const values = roi.map(r => parseFloat(r.roi_percentage));
+
+    return {
+      tooltip: {
+        trigger: 'axis',
+        formatter: '{b}: {c}%'
+      },
+      grid: {
+        left: '15%',
+        right: '10%',
+        bottom: '3%',
+        containLabel: false
+      },
+      xAxis: {
+        type: 'value',
+        axisLabel: {
+          color: COLORS.gray[600],
+          formatter: '{value}%'
+        }
+      },
+      yAxis: {
+        type: 'category',
+        data: names,
+        axisLabel: { color: COLORS.gray[600] }
+      },
+      series: [{
+        type: 'bar',
+        data: values,
+        itemStyle: {
+          color: (params) => {
+            const value = params.value;
+            if (value >= 400) return COLORS.success;
+            if (value >= 300) return COLORS.accent;
+            if (value >= 200) return COLORS.warning;
+            return COLORS.danger;
+          },
+          borderRadius: [0, 4, 4, 0]
+        },
+        label: {
+          show: true,
+          position: 'right',
+          formatter: '{c}%',
+          color: COLORS.gray[700],
+          fontSize: 12,
+          fontWeight: '600'
+        }
+      }]
+    };
+  };
+
+  // Calculate Key Metrics from API Data
+  const calculateMetrics = () => {
+    if (!dashboardData.activeCampaigns?.campaigns || !dashboardData.roiAnalysis) {
+      return {
+        activeCampaigns: 0,
+        totalRaised: 0,
+        averageROI: 0,
+        avgCPA: 0,
+        campaignsAhead: 0,
+        percentOfGoal: 0,
+        matchingGiftCapture: 0,
+        participationRate: 0
+      };
+    }
+
+    const campaigns = dashboardData.activeCampaigns.campaigns;
+    const totalRaised = campaigns.reduce((sum, c) => sum + c.raised_amount, 0);
+    const totalGoal = campaigns.reduce((sum, c) => sum + c.goal_amount, 0);
+    const averageROI = dashboardData.roiAnalysis.summary?.avg_campaign_roi || 0;
+    const avgCPA = dashboardData.costAnalysis?.summary?.overall_cost_per_donation || dashboardData.costAnalysis?.average_cpa || 0;
+    const campaignsAhead = campaigns.filter(c =>
+      c.raised_amount / c.goal_amount > 0.8
+    ).length;
+    const matchingGiftCapture = (dashboardData.matchingGifts?.capture_rate || 0) * 100; // Convert to percentage
+    const participationRate = (dashboardData.participationMetrics?.participation_rate || 0) * 100; // Convert to percentage
+
+    return {
+      activeCampaigns: campaigns.length,
+      totalRaised: totalRaised,
+      averageROI: parseFloat(averageROI),
+      avgCPA: parseFloat(avgCPA),
+      campaignsAhead,
+      percentOfGoal: (totalRaised / totalGoal) * 100,
+      matchingGiftCapture: parseFloat(matchingGiftCapture),
+      participationRate: parseFloat(participationRate)
+    };
+  };
+
+  const metrics = calculateMetrics();
+
+  if (dashboardData.loading) {
+    return (
+      <div className="min-h-screen" style={{ background: COLORS.gray[50] }}>
+        <div className="flex items-center justify-center h-96">
+          <RefreshCw className="h-8 w-8 animate-spin" style={{ color: COLORS.primary }} />
+          <span className="ml-3 text-lg" style={{ color: COLORS.gray[600] }}>Loading campaign analytics...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (dashboardData.error) {
+    return (
+      <div className="min-h-screen" style={{ background: COLORS.gray[50] }}>
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.danger }}>
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="h-6 w-6" style={{ color: COLORS.danger }} />
+              <h3 className="text-lg font-semibold" style={{ color: COLORS.danger }}>
+                Error Loading Data
+              </h3>
+            </div>
+            <p style={{ color: COLORS.gray[600] }}>{dashboardData.error}</p>
+            <button
+              onClick={fetchCampaignData}
+              className="mt-4 px-4 py-2 rounded-lg font-medium"
+              style={{
+                background: COLORS.primary,
+                color: 'white'
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen" style={{ background: COLORS.gray[50] }}>
+      {/* Header */}
+      <div className="border-b" style={{
+        background: 'white',
+        borderColor: COLORS.gray[200]
+      }}>
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <button
+                onClick={() => navigate('/analytics')}
+                className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                style={{ color: COLORS.gray[600] }}
+              >
+                <ChevronLeft className="h-5 w-5" />
+                <span className="text-sm font-medium">Back to Analytics Dashboard</span>
+              </button>
+              <h1 className="text-3xl font-bold mb-2" style={{ color: COLORS.gray[900] }}>
+                Campaign Performance
+              </h1>
+              <p className="text-sm" style={{ color: COLORS.gray[600] }}>
+                Comprehensive campaign analytics, ROI, forecasting, and attribution
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value)}
+                className="px-4 py-2 rounded-lg border"
+                style={{ borderColor: COLORS.gray[300], color: COLORS.gray[700] }}
+              >
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="90d">Last Quarter</option>
+                <option value="ytd">Year to Date</option>
+                <option value="1y">Last Year</option>
+              </select>
+              <button
+                onClick={fetchCampaignData}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border font-medium hover:bg-gray-50"
+                style={{ borderColor: COLORS.gray[300], color: COLORS.gray[700] }}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
+                      style={{ background: COLORS.primary }}>
+                <Download className="h-4 w-4" />
+                Export
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Key Metrics - Row 1 */}
+        <div className="grid grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ background: `${COLORS.primary}15` }}>
+                <Target className="h-6 w-6" style={{ color: COLORS.primary }} />
+              </div>
+              <div className="flex items-center gap-1 text-sm font-semibold" style={{ color: COLORS.success }}>
+                <ArrowUp className="h-4 w-4" />
+                Active
+              </div>
+            </div>
+            <p className="text-sm font-medium mb-1" style={{ color: COLORS.gray[600] }}>
+              Active Campaigns
+            </p>
+            <p className="text-3xl font-bold" style={{ color: COLORS.gray[900] }}>
+              {metrics.activeCampaigns}
+            </p>
+            <p className="text-xs mt-2" style={{ color: COLORS.gray[500] }}>
+              {metrics.campaignsAhead} ahead of schedule
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ background: `${COLORS.secondary}15` }}>
+                <DollarSign className="h-6 w-6" style={{ color: COLORS.secondary }} />
+              </div>
+              <div className="flex items-center gap-1 text-sm font-semibold" style={{ color: COLORS.success }}>
+                <ArrowUp className="h-4 w-4" />
+                {metrics.percentOfGoal.toFixed(1)}%
+              </div>
+            </div>
+            <p className="text-sm font-medium mb-1" style={{ color: COLORS.gray[600] }}>
+              Total Raised (YTD)
+            </p>
+            <p className="text-3xl font-bold" style={{ color: COLORS.gray[900] }}>
+              ${(metrics.totalRaised / 1000000).toFixed(2)}M
+            </p>
+            <p className="text-xs mt-2" style={{ color: COLORS.gray[500] }}>
+              {metrics.percentOfGoal.toFixed(1)}% of annual goal
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ background: `${COLORS.accent}15` }}>
+                <TrendingUp className="h-6 w-6" style={{ color: COLORS.accent }} />
+              </div>
+              <div className="flex items-center gap-1 text-sm font-semibold" style={{ color: COLORS.success }}>
+                <ArrowUp className="h-4 w-4" />
+                ROI
+              </div>
+            </div>
+            <p className="text-sm font-medium mb-1" style={{ color: COLORS.gray[600] }}>
+              Average ROI
+            </p>
+            <p className="text-3xl font-bold" style={{ color: COLORS.gray[900] }}>
+              {metrics.averageROI.toFixed(1)}x
+            </p>
+            <p className="text-xs mt-2" style={{ color: COLORS.gray[500] }}>
+              Above industry avg
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ background: `${COLORS.info}15` }}>
+                <Award className="h-6 w-6" style={{ color: COLORS.info }} />
+              </div>
+              <div className="flex items-center gap-1 text-sm font-semibold" style={{
+                color: metrics.avgCPA < 50 ? COLORS.success : COLORS.warning
+              }}>
+                {metrics.avgCPA < 50 ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+                CPA
+              </div>
+            </div>
+            <p className="text-sm font-medium mb-1" style={{ color: COLORS.gray[600] }}>
+              Avg Cost/Acquisition
+            </p>
+            <p className="text-3xl font-bold" style={{ color: COLORS.gray[900] }}>
+              ${metrics.avgCPA.toFixed(2)}
+            </p>
+            <p className="text-xs mt-2" style={{ color: COLORS.gray[500] }}>
+              Per new donor
+            </p>
+          </div>
+        </div>
+
+        {/* Key Metrics - Row 2 (NEW) */}
+        <div className="grid grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ background: `${COLORS.success}15` }}>
+                <Gift className="h-6 w-6" style={{ color: COLORS.success }} />
+              </div>
+              <div className="flex items-center gap-1 text-sm font-semibold" style={{ color: COLORS.success }}>
+                <ArrowUp className="h-4 w-4" />
+                Rate
+              </div>
+            </div>
+            <p className="text-sm font-medium mb-1" style={{ color: COLORS.gray[600] }}>
+              Matching Gift Capture
+            </p>
+            <p className="text-3xl font-bold" style={{ color: COLORS.gray[900] }}>
+              {metrics.matchingGiftCapture.toFixed(1)}%
+            </p>
+            <p className="text-xs mt-2" style={{ color: COLORS.gray[500] }}>
+              Of eligible gifts matched
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-lg" style={{ background: `${COLORS.warning}15` }}>
+                <Users className="h-6 w-6" style={{ color: COLORS.warning }} />
+              </div>
+              <div className="flex items-center gap-1 text-sm font-semibold" style={{ color: COLORS.success }}>
+                <ArrowUp className="h-4 w-4" />
+                Rate
+              </div>
+            </div>
+            <p className="text-sm font-medium mb-1" style={{ color: COLORS.gray[600] }}>
+              Participation Rate
+            </p>
+            <p className="text-3xl font-bold" style={{ color: COLORS.gray[900] }}>
+              {metrics.participationRate.toFixed(1)}%
+            </p>
+            <p className="text-xs mt-2" style={{ color: COLORS.gray[500] }}>
+              Active donor participation
+            </p>
+          </div>
+
+          {dashboardData.benchmarks && (
+            <>
+              <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 rounded-lg" style={{ background: `${COLORS.info}15` }}>
+                    <BarChart3 className="h-6 w-6" style={{ color: COLORS.info }} />
+                  </div>
+                  <div className="flex items-center gap-1 text-sm font-semibold" style={{ color: COLORS.success }}>
+                    <CheckCircle className="h-4 w-4" />
+                    vs Benchmark
+                  </div>
+                </div>
+                <p className="text-sm font-medium mb-1" style={{ color: COLORS.gray[600] }}>
+                  Industry Benchmark
+                </p>
+                <p className="text-3xl font-bold" style={{ color: COLORS.gray[900] }}>
+                  {dashboardData.benchmarks.overall_score}
+                </p>
+                <p className="text-xs mt-2" style={{ color: COLORS.gray[500] }}>
+                  Overall score (out of 100)
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 rounded-lg" style={{ background: `${COLORS.accent}15` }}>
+                    <Gift className="h-6 w-6" style={{ color: COLORS.accent }} />
+                  </div>
+                  <div className="flex items-center gap-1 text-sm font-semibold" style={{ color: COLORS.success }}>
+                    <ArrowUp className="h-4 w-4" />
+                    Matched
+                  </div>
+                </div>
+                <p className="text-sm font-medium mb-1" style={{ color: COLORS.gray[600] }}>
+                  Total Matched Gifts
+                </p>
+                <p className="text-3xl font-bold" style={{ color: COLORS.gray[900] }}>
+                  ${(dashboardData.matchingGifts?.total_matched || 0).toLocaleString()}
+                </p>
+                <p className="text-xs mt-2" style={{ color: COLORS.gray[500] }}>
+                  From {dashboardData.matchingGifts?.top_companies?.length || 0} companies
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* A/B Test Results - NEW */}
+        {dashboardData.abTestResults?.active_tests && dashboardData.abTestResults.active_tests.length > 0 && (
+          <div className="bg-white rounded-xl p-6 border mb-8" style={{ borderColor: COLORS.gray[200] }}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold" style={{ color: COLORS.gray[800] }}>
+                Active A/B Tests
+              </h3>
+              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide"
+                    style={{ background: `${COLORS.info}20`, color: COLORS.info }}>
+                {dashboardData.abTestResults.active_tests.length} Tests Running
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {dashboardData.abTestResults.active_tests.map((test, idx) => {
+                const winner = test.variant_a_conversion > test.variant_b_conversion ? 'A' : 'B';
+                const lift = Math.abs(test.variant_a_conversion - test.variant_b_conversion);
+
+                return (
+                  <div key={test.id || idx} className="p-4 rounded-xl border"
+                       style={{ borderColor: COLORS.gray[200] }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-sm" style={{ color: COLORS.gray[800] }}>
+                        {test.test_name}
+                      </h4>
+                      <GitBranch className="h-4 w-4" style={{ color: COLORS.info }} />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs" style={{ color: COLORS.gray[600] }}>
+                          Variant A
+                        </span>
+                        <span className={`text-sm font-bold ${winner === 'A' ? 'text-green-600' : ''}`}>
+                          {test.variant_a_conversion.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs" style={{ color: COLORS.gray[600] }}>
+                          Variant B
+                        </span>
+                        <span className={`text-sm font-bold ${winner === 'B' ? 'text-green-600' : ''}`}>
+                          {test.variant_b_conversion.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="pt-2 border-t" style={{ borderColor: COLORS.gray[200] }}>
+                        <p className="text-xs" style={{ color: COLORS.gray[500] }}>
+                          Lift: {lift.toFixed(2)}% • Confidence: {test.confidence_level.toFixed(0)}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Active Campaigns - Using API Data */}
+        {dashboardData.activeCampaigns?.campaigns && (
+          <div className="bg-white rounded-xl p-6 border mb-8" style={{ borderColor: COLORS.gray[200] }}>
+            <h3 className="text-xl font-semibold mb-6" style={{ color: COLORS.gray[800] }}>
+              Active Campaigns Overview
+            </h3>
+
+            <div className="space-y-4">
+              {dashboardData.activeCampaigns.campaigns.map((campaign, idx) => {
+                const progress = (campaign.raised_amount / campaign.goal_amount) * 100;
+                const pace = progress >= 80 ? 'ahead' : progress >= 60 ? 'on_track' : 'behind';
+                const paceColors = {
+                  ahead: COLORS.success,
+                  on_track: COLORS.accent,
+                  behind: COLORS.warning
+                };
+
+                return (
+                  <div key={campaign.id || idx} className="p-5 rounded-xl border hover:shadow-md transition-all cursor-pointer"
+                       style={{ borderColor: COLORS.gray[200] }}
+                       onClick={() => setSelectedCampaign(campaign)}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h4 className="text-lg font-semibold mb-1" style={{ color: COLORS.gray[800] }}>
+                          {campaign.name}
+                        </h4>
+                        <div className="flex items-center gap-4 text-sm" style={{ color: COLORS.gray[600] }}>
+                          <span className="flex items-center gap-1">
+                            <Activity className="h-4 w-4" />
+                            {campaign.donor_count || 0} donors
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {campaign.days_remaining || 0} days remaining
+                          </span>
+                          {campaign.participation_rate && (
+                            <span className="flex items-center gap-1">
+                              <Users className="h-4 w-4" />
+                              {campaign.participation_rate.toFixed(1)}% participation
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide"
+                              style={{
+                                background: `${paceColors[pace]}20`,
+                                color: paceColors[pace]
+                              }}>
+                          {pace.replace('_', ' ')}
+                        </span>
+                        <ChevronRight className="h-5 w-5" style={{ color: COLORS.gray[400] }} />
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium" style={{ color: COLORS.gray[600] }}>
+                          ${(campaign.raised_amount  / 1000).toFixed(0)}K raised of ${(campaign.goal_amount / 1000).toFixed(0)}K goal
+                        </span>
+                        <span className="text-lg font-bold" style={{ color: COLORS.gray[900] }}>
+                          {progress.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="w-full rounded-full h-3" style={{ background: COLORS.gray[200] }}>
+                        <div className="h-3 rounded-full transition-all duration-500"
+                             style={{
+                               width: `${Math.min(progress, 100)}%`,
+                               background: paceColors[pace]
+                             }} />
+                      </div>
+                    </div>
+
+                    {campaign.cpa && (
+                      <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: COLORS.gray[200] }}>
+                        <span className="text-xs" style={{ color: COLORS.gray[500] }}>
+                          Cost per Acquisition: ${campaign.cpa.toFixed(2)}
+                        </span>
+                        <span className="text-xs" style={{ color: COLORS.gray[500] }}>
+                          ROI: {campaign.roi.toFixed(1)}x
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Charts Row 1 */}
+        <div className="grid grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <h3 className="text-xl font-semibold mb-6" style={{ color: COLORS.gray[800] }}>
+              Campaign Progress vs Goals
+            </h3>
+            <div className="h-80">
+              <ReactECharts option={getCampaignProgressChart()} style={{ height: '100%' }} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <h3 className="text-xl font-semibold mb-6" style={{ color: COLORS.gray[800] }}>
+              Revenue Forecast
+            </h3>
+            <div className="h-80">
+              <ReactECharts option={getRevenueForecastChart()} style={{ height: '100%' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Charts Row 2 */}
+        <div className="grid grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <h3 className="text-xl font-semibold mb-6" style={{ color: COLORS.gray[800] }}>
+              Revenue by Source
+            </h3>
+            <div className="h-80">
+              <ReactECharts option={getRevenueBySourceChart()} style={{ height: '100%' }} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <h3 className="text-xl font-semibold mb-6" style={{ color: COLORS.gray[800] }}>
+              Multi-Channel Attribution
+            </h3>
+            <div className="h-80">
+              {dashboardData.attribution?.channels?.length > 0 ? (
+                <ReactECharts option={getAttributionChart()} style={{ height: '100%' }} />
+              ) : (
+                <EmptyChartState
+                  title="No Attribution Data"
+                  message="Attribution tracking requires campaign_attributions data. Run the populate script to generate sample attribution data, or change the time range to include periods with attribution data."
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Charts Row 3 */}
+        <div className="grid grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <h3 className="text-xl font-semibold mb-6" style={{ color: COLORS.gray[800] }}>
+              Cost per Acquisition
+            </h3>
+            <div className="h-80">
+              {dashboardData.costAnalysis?.campaigns?.length > 0 ? (
+                <ReactECharts option={getCostPerAcquisitionChart()} style={{ height: '100%' }} />
+              ) : (
+                <EmptyChartState
+                  title="No CPA Data"
+                  message="Cost per Acquisition requires campaigns to have marketing_cost data. Run the populate script to add marketing costs to campaigns."
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 border" style={{ borderColor: COLORS.gray[200] }}>
+            <h3 className="text-xl font-semibold mb-6" style={{ color: COLORS.gray[800] }}>
+              Campaign ROI Comparison
+            </h3>
+            <div className="h-80">
+              {dashboardData.roiAnalysis?.campaigns?.length > 0 ? (
+                <ReactECharts option={getROIComparisonChart()} style={{ height: '100%' }} />
+              ) : (
+                <EmptyChartState
+                  title="No ROI Data"
+                  message="ROI calculation requires campaigns to have both raised_amount and marketing_cost data. Run the populate script to add marketing costs to campaigns."
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CampaignPerformanceDashboard;

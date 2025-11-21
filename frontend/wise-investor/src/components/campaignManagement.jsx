@@ -139,7 +139,7 @@ const CampaignManagement = () => {
       const organizationId = getOrganizationId();
       if (!token || !organizationId) return;
 
-      const response = await fetch(`${API_BASE_URL}/api/campaigns/stats`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/campaigns/organization/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -572,7 +572,7 @@ const CampaignManagement = () => {
               }}>
                 <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '8px' }}>Total Raised</div>
                 <div style={{ fontSize: '32px', fontWeight: '700' }}>
-                  ${(stats.total_raised || 0).toLocaleString()}
+                  ${(stats.total_raised_amount || 0).toLocaleString()}
                 </div>
               </div>
               <div style={{
@@ -584,7 +584,7 @@ const CampaignManagement = () => {
               }}>
                 <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '8px' }}>Avg. Goal Progress</div>
                 <div style={{ fontSize: '32px', fontWeight: '700' }}>
-                  {Math.round(stats.average_progress || 0)}%
+                  {Math.round(stats.overall_completion_rate || 0)}%
                 </div>
               </div>
             </div>
