@@ -117,6 +117,8 @@ class Organizations(Base):
     donation_lines = relationship("DonationLines", back_populates="organization")
     major_gift_officers = relationship("MajorGiftOfficer", back_populates="organization")
     donor_meetings = relationship("DonorMeetings", back_populates="organization")
+    program_impact_stats = relationship("ProgramImpactStats", back_populates="organization", cascade="all, delete-orphan")
+    impact_summary = relationship("OrganizationImpactSummary", back_populates="organization", uselist=False, cascade="all, delete-orphan")
     donor_scores = relationship("DonorScores", back_populates="organization")
     email_campaigns = relationship("EmailCampaigns", back_populates="organization")
     events = relationship("Events", back_populates="organization")
@@ -545,6 +547,7 @@ class Programs(Base):
     donation_lines = relationship("DonationLines", back_populates="program")
     expenses = relationship("Expenses", back_populates="program")
     impact_metrics = relationship("ImpactMetrics", back_populates="program")
+    impact_stats = relationship("ProgramImpactStats", back_populates="program", cascade="all, delete-orphan")
     outcome_metrics = relationship("OutcomeMetrics", back_populates="program")
     program_enrollments = relationship("ProgramEnrollments", back_populates="program")
     projects = relationship("Projects", back_populates="program")
@@ -3070,4 +3073,134 @@ class Communications(Base):
     # Relationships
     organization = relationship("Organizations", back_populates="communications")
     donor = relationship("Donors", back_populates="communications")
+
+
+class ImpactCategoryEnum(str, enum.Enum):
+    """Categories for impact metrics"""
+    food_security = "food_security"           # People fed, meals served
+    education = "education"                    # Students educated, scholarships
+    healthcare = "healthcare"                  # Patients treated, checkups
+    housing = "housing"                        # Families housed, homes built
+    employment = "employment"                  # Jobs created, people trained
+    environment = "environment"                # Trees planted, waste recycled
+    community = "community"                    # Volunteers engaged, events held
+    financial = "financial"                    # Families supported, grants given
+    children = "children"                      # Children supported, youth programs
+    elderly = "elderly"                        # Seniors assisted
+    disaster_relief = "disaster_relief"        # Families helped, supplies distributed
+    mental_health = "mental_health"            # Counseling sessions, people supported
+    custom = "custom"                          # Custom metrics
+
+
+class ProgramImpactStats(Base):
+    """
+    Tracks specific impact statistics for programs with human-readable descriptions.
+    Example: Program "Food Bank" -> "People Fed" = 500
+    """
+    __tablename__ = "program_impact_stats"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    program_id = Column(UUID(as_uuid=True), ForeignKey("programs.id", ondelete="CASCADE"), nullable=False)
+
+    # Impact Category
+    category = Column(String(50), nullable=False)  # e.g., 'food_security', 'education'
+
+    # Metric Details
+    metric_name = Column(String(255), nullable=False)        # e.g., "People Fed", "Students Educated"
+    metric_value = Column(Integer, nullable=False, default=0) # e.g., 500
+    metric_unit = Column(String(100), default="people")       # e.g., "people", "meals", "families"
+
+    # Display Configuration
+    display_label = Column(String(255))          # e.g., "People Fed Through Our Food Bank"
+    icon_name = Column(String(50))               # e.g., "utensils", "graduation-cap", "heart"
+    display_order = Column(Integer, default=0)   # For ordering on dashboards
+    is_featured = Column(Boolean, default=False) # Show prominently on main dashboard
+    is_public = Column(Boolean, default=True)    # Show on public-facing pages
+
+    # Time Period (optional)
+    period_start = Column(Date)
+    period_end = Column(Date)
+    period_type = Column(String(20))  # 'all_time', 'ytd', 'monthly', 'quarterly'
+
+    # Target vs Actual
+    target_value = Column(Integer)               # Goal for this metric
+
+    # Additional Context
+    description = Column(Text)                   # Longer description if needed
+    methodology = Column(Text)                   # How this metric is calculated
+    data_source = Column(String(255))            # Where data comes from
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+
+    # Relationships
+    organization = relationship("Organizations", back_populates="program_impact_stats")
+    program = relationship("Programs", back_populates="impact_stats")
+
+    def __repr__(self):
+        return f"<ProgramImpactStats {self.metric_name}: {self.metric_value} {self.metric_unit}>"
+
+    @property
+    def progress_percentage(self):
+        """Calculate progress towards target"""
+        if self.target_value and self.target_value > 0:
+            return min(100, (self.metric_value / self.target_value) * 100)
+        return None
+
+    @property
+    def formatted_value(self):
+        """Return formatted display value"""
+        if self.metric_value >= 1000000:
+            return f"{self.metric_value / 1000000:.1f}M"
+        elif self.metric_value >= 1000:
+            return f"{self.metric_value / 1000:.1f}K"
+        return str(self.metric_value)
+
+    @property
+    def impact_statement(self):
+        """Generate human-readable impact statement"""
+        if self.display_label:
+            return f"{self.formatted_value} {self.display_label}"
+        return f"{self.formatted_value} {self.metric_unit} {self.metric_name.lower()}"
+
+
+class OrganizationImpactSummary(Base):
+    """
+    Cached summary of organization-wide impact for fast dashboard loading.
+    Updated periodically or on-demand.
+    """
+    __tablename__ = "organization_impact_summary"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, unique=True)
+
+    # Aggregated Stats
+    total_beneficiaries = Column(Integer, default=0)
+    total_programs = Column(Integer, default=0)
+    total_volunteers = Column(Integer, default=0)
+    total_service_hours = Column(Float, default=0)
+
+    # Financial Impact
+    total_funds_raised = Column(Numeric(15, 2), default=0)
+    total_funds_disbursed = Column(Numeric(15, 2), default=0)
+
+    # Top Impact Stats (JSON for flexibility)
+    # Format: [{"category": "food", "metric": "People Fed", "value": 500, "icon": "utensils"}, ...]
+    featured_impacts = Column(JSONB, default=list)
+
+    # By Category Breakdown
+    # Format: {"food_security": 500, "education": 300, ...}
+    impact_by_category = Column(JSONB, default=dict)
+
+    # Period
+    last_calculated = Column(DateTime(timezone=True))
+    period_type = Column(String(20), default="all_time")
+
+    # Relationships
+    organization = relationship("Organizations", back_populates="impact_summary")
+
 

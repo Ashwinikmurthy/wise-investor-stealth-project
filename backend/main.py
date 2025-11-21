@@ -12,6 +12,7 @@ from user_management.user_management_api import router as user_management_router
 from analytics.analytics import router as analytics_router
 from ai_analytics.strategic_planning_analytics import router as strategicplanningrouter
 from ai_analytics.quick_actions_api import router as quickactionrouter
+from analytics.program_stats_analytics import router as progstatsrouter
 #from timeline_analytics import router as timeline_router
 from analytics.new_donor_analytics import router as donor_router
 from analytics.new_extra_analytics import router as extra_router
@@ -183,6 +184,7 @@ app.include_router(analytics_router)
 app.include_router(high_impact_router)
 app.include_router(cashflow_router)
 app.include_router(golden_router)
+app.include_router(progstatsrouter)
 app.include_router(campanalyticsrouter)
 app.include_router(enhanced_router)
 app.include_router(second_router)

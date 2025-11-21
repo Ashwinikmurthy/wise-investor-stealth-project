@@ -48,6 +48,14 @@ def normalize_campaign_fields(campaign: Campaign) -> Campaign:
     if campaign.average_donation is None:
         campaign.average_donation = 0
 
+    # Boolean fields that should default to False
+    if campaign.allow_recurring is None:
+        campaign.allow_recurring = False
+    if hasattr(campaign, 'is_public') and campaign.is_public is None:
+        campaign.is_public = False
+    if hasattr(campaign, 'is_featured') and campaign.is_featured is None:
+        campaign.is_featured = False
+
     return campaign
 
 def calculate_live_donation_stats(db: Session, campaign_id: uuid.UUID) -> dict:

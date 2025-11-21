@@ -11,7 +11,7 @@ import {
   Star, Layers, CircleDot, CreditCard, Building, User
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-
+import ProgramImpactStatsSection from './programstatsdashboard'; 
 // UT Dallas Brand Colors
 const colors = {
   primary: '#E87500',
@@ -1273,7 +1273,14 @@ const EnhancedLandingPage = () => {
             </div>
           </section>
         )}
-
+	 <section style={{ marginBottom: '32px' }}>
+          <ProgramImpactStatsSection 
+            organizationId={getOrganizationId()}
+            showTitle={true}
+            maxItems={6}
+            layout="grid"
+          />
+        </section>
         {/* SWOT Analysis Section */}
         <section style={styles.swotSection}>
           <div style={styles.swotHeader}>

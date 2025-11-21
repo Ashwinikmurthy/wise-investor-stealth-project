@@ -53,7 +53,7 @@ class MeetingResponse(BaseModel):
 
 class DonorOpportunityResponse(BaseModel):
     """Donor opportunity with priority and calculations"""
-    party_id: UUID
+    donor_id: UUID
     donor_name: str
     officer_id: Optional[UUID]
     officer_name: Optional[str]
@@ -440,7 +440,7 @@ async def get_donor_opportunities(
             query = query.filter(DonorPriorityCache.priority_level == priority_tier)
 
         if donor_level:
-            query = query.filter(DonorPriorityCache.donor_level == donor_level)
+            query = query.filter(DonorPriorityCache.current_donor_level == donor_level)
 
         if officer_id:
             query = query.filter(DonorPriorityCache.assigned_officer_id == officer_id)
@@ -455,7 +455,7 @@ async def get_donor_opportunities(
                 DonorExclusionTag.is_active == True
             ).subquery()
 
-            query = query.filter(~DonorPriorityCache.party_id.in_(excluded_parties))
+            query = query.filter(~DonorPriorityCache.donor_id.in_(excluded_parties))
 
         # Order by priority tier and opportunity value
         query = query.order_by(
@@ -474,8 +474,8 @@ async def get_donor_opportunities(
 
             # Get officer info
             officer_name = None
-            if row.officer_id:
-                officer = db.query(User).filter(User.id == row.officer_id).first()
+            if row.assigned_officer_id:
+                officer = db.query(MajorGiftOfficer).filter(MajorGiftOfficer.id == row.assigned_officer_id).first()
                 officer_name = f"{officer.first_name} {officer.last_name}" if officer else None
 
             # Priority descriptions
@@ -487,19 +487,22 @@ async def get_donor_opportunities(
                 5: "This year's gifts >= last year's gifts"
             }
 
+            # Convert priority_level enum to integer (e.g., 'priority_1' -> 1)
+            priority_value = int(str(row.priority_level).replace('priority_', '').replace('PriorityLevelEnum.', ''))
+
             response.append(DonorOpportunityResponse(
-                party_id=row.party_id,
+                donor_id=row.donor_id,
                 donor_name=donor_name,
-                officer_id=row.officer_id,
+                officer_id=row.assigned_officer_id,
                 officer_name=officer_name,
-                priority_level=row.priority_level,
-                priority_description=priority_descriptions.get(row.priority_level, "Unknown"),
-                opportunity_amount=float(row.opportunity_amount),
-                calculation_basis=row.opportunity_calculation_basis or "",
-                donor_level=row.donor_level,
-                current_year_total=float(row.current_year_total),
-                last_year_total=float(row.last_year_total),
-                two_years_ago_total=float(row.two_years_ago_total),
+                priority_tier=priority_value,
+                priority_description=priority_descriptions.get(priority_value, "Unknown"),
+                opportunity_amount=float(row.opportunity_amount) if row.opportunity_amount is not None else 0.0,
+                calculation_basis=row.opportunity_basis or "",
+                donor_level=str(row.current_donor_level).replace('DonorLevelEnum.', ''),
+                current_year_total=float(row.current_year_total) if row.current_year_total is not None else 0.0,
+                last_year_total=float(row.last_year_total) if row.last_year_total is not None else 0.0,
+                two_years_ago_total=float(row.two_years_ago_total) if row.two_years_ago_total is not None else 0.0,
                 last_gift_date=row.last_gift_date
             ))
 
