@@ -8,7 +8,7 @@ import {
   Zap, Brain, ArrowUp, ArrowDown, Star, Lightbulb, Users2,
   BarChart3, PieChart, LineChart, Download, Maximize2,
   RefreshCw, AlertCircle, TrendingDown, Globe, MousePointer, Percent,
-  Grid, Compass
+  Grid, Compass, ArrowLeft
 } from 'lucide-react';
 
 // PREMIUM EXECUTIVE COLOR PALETTE
@@ -1716,6 +1716,30 @@ const CompletePremiumExecutiveDashboard = () => {
       {/* Premium Header */}
       <div className="bg-white border-b shadow-sm" style={{ borderColor: EXECUTIVE_COLORS.gray[200] }}>
         <div className="max-w-[1800px] mx-auto px-8 py-6">
+          {/* Back Button */}
+          <div className="mb-4">
+            <button
+              onClick={() => window.location.href = '/dashboard'}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 hover:shadow-md"
+              style={{
+                background: 'white',
+                border: `1px solid ${EXECUTIVE_COLORS.gray[300]}`,
+                color: EXECUTIVE_COLORS.primary
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${EXECUTIVE_COLORS.primary}10`;
+                e.currentTarget.style.borderColor = EXECUTIVE_COLORS.primary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'white';
+                e.currentTarget.style.borderColor = EXECUTIVE_COLORS.gray[300];
+              }}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="font-medium text-sm">Back to Dashboard</span>
+            </button>
+          </div>
+
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold mb-1" style={{
