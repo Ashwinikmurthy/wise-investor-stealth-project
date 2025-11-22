@@ -118,6 +118,18 @@ const CompletePremiumExecutiveDashboard = () => {
     roiAnalysis: null,
     strategicSummary: null
   });
+  // Enhanced Multi-Year Trends state from Campaign Dashboard
+  const [enhancedMultiYearData, setEnhancedMultiYearData] = useState({
+    revenue: null,
+    donors: null,
+    gifts: null,
+    retention: null,
+    new_donors: null,
+    lapsed: null,
+    selectedMetric: "revenue",
+    selectedYears: 3
+  });
+
 
   // Time range for financial trends
   const [timeRange, setTimeRange] = useState('365d');
@@ -283,12 +295,51 @@ const CompletePremiumExecutiveDashboard = () => {
     }
   };
 
+  // Enhanced Multi-Year Trends fetch function from Campaign Dashboard
+  const fetchEnhancedMultiYearTrends = async (metric = "revenue", years = 3) => {
+    try {
+      const token = await getToken();
+      const baseUrl = "";
+
+      const response = await fetch(
+        `${baseUrl}/api/v1/analytics/${organizationId}/trends/multi-year?metric=${metric}&years=${years}`,
+        { headers: { "Authorization": `Bearer ${token}` } }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch multi-year ${metric} data`);
+      }
+
+      const data = await response.json();
+
+      setEnhancedMultiYearData(prev => ({
+        ...prev,
+        [metric]: data,
+        selectedMetric: metric,
+        selectedYears: years
+      }));
+    } catch (error) {
+      console.error(`Error fetching multi-year ${metric} trends:`, error);
+    }
+  };
+
+
   // Fetch financial trends when tab changes or on mount
   useEffect(() => {
     if (activeTab === 'financial-trends' || activeTab === 'strategic-planning') {
       fetchFinancialTrends();
     }
   }, [activeTab, timeRange]);
+
+  // Fetch enhanced multi-year trends when tab changes
+  useEffect(() => {
+    if (activeTab === "financial-trends") {
+      fetchEnhancedMultiYearTrends(
+        enhancedMultiYearData.selectedMetric,
+        enhancedMultiYearData.selectedYears
+      );
+    }
+  }, [activeTab, enhancedMultiYearData.selectedMetric, enhancedMultiYearData.selectedYears]);
 
   const calculateP2SGScores = () => {
     const { executive, health, okrs } = dashboardData;
@@ -3551,79 +3602,254 @@ const CompletePremiumExecutiveDashboard = () => {
             </div>
           </div>
 
-          {/* Multi-Year Trends */}
+
+          {/* Enhanced Multi-Year Trends Section */}
           <div className="col-span-12">
             <div className="bg-white rounded-2xl p-8 border transition-all duration-300 hover:shadow-xl"
                  style={{
                    borderColor: EXECUTIVE_COLORS.gray[200],
                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
                  }}>
-              <h3 className="text-2xl font-semibold mb-6" style={{
-                color: EXECUTIVE_COLORS.gray[800],
-                letterSpacing: '-0.01em'
-              }}>
-                Multi-Year Revenue Trends
-              </h3>
-              {financialTrends.multiYearData ? (
-                <ReactECharts
-                  option={{
-                    tooltip: {
-                      trigger: 'axis',
-                      formatter: (params) => {
-                        const data = params[0];
-                        return `${data.name}<br/>Revenue: $${(data.value / 1000000).toFixed(2)}M`;
-                      }
-                    },
-                    xAxis: {
-                      type: 'category',
-                      data: (financialTrends.multiYearData.data || []).map(d => d.year).reverse()
-                    },
-                    yAxis: {
-                      type: 'value',
-                      axisLabel: {
-                        formatter: (val) => `$${(val / 1000000).toFixed(1)}M`
-                      }
-                    },
-                    series: [{
-                      name: 'Revenue',
-                      type: 'line',
-                      data: (financialTrends.multiYearData.data || []).map(d => d.value).reverse(),
-                      smooth: true,
-                      areaStyle: {
-                        color: {
-                          type: 'linear',
-                          x: 0, y: 0, x2: 0, y2: 1,
-                          colorStops: [
-                            { offset: 0, color: 'rgba(232, 117, 0, 0.3)' },
-                            { offset: 1, color: 'rgba(232, 117, 0, 0.05)' }
-                          ]
+              {/* Header with Controls */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-semibold" style={{
+                    color: EXECUTIVE_COLORS.gray[800],
+                    letterSpacing: '-0.01em'
+                  }}>
+                    Multi-Year Trends Analysis
+                  </h3>
+                  <p className="text-sm mt-1" style={{ color: EXECUTIVE_COLORS.gray[500] }}>
+                    Compare key metrics across multiple years
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {/* Year selector */}
+                  <div className="flex gap-2">
+                    {[3, 5, 10].map(years => (
+                      <button
+                        key={years}
+                        onClick={() => {
+                          setEnhancedMultiYearData(prev => ({
+                            ...prev,
+                            selectedYears: years
+                          }));
+                          fetchEnhancedMultiYearTrends(enhancedMultiYearData.selectedMetric, years);
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                          enhancedMultiYearData.selectedYears === years
+                            ? 'text-white'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                        style={{
+                          backgroundColor: enhancedMultiYearData.selectedYears === years
+                            ? EXECUTIVE_COLORS.primary
+                            : 'transparent',
+                          borderWidth: '1px',
+                          borderColor: enhancedMultiYearData.selectedYears === years
+                            ? EXECUTIVE_COLORS.primary
+                            : EXECUTIVE_COLORS.gray[300]
+                        }}
+                      >
+                        {years} Years
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Metric selector */}
+                  <select
+                    value={enhancedMultiYearData.selectedMetric}
+                    onChange={(e) => {
+                      const metric = e.target.value;
+                      setEnhancedMultiYearData(prev => ({
+                        ...prev,
+                        selectedMetric: metric
+                      }));
+                      fetchEnhancedMultiYearTrends(metric, enhancedMultiYearData.selectedYears);
+                    }}
+                    className="px-4 py-2 rounded-lg border text-sm font-semibold bg-white"
+                    style={{
+                      borderColor: EXECUTIVE_COLORS.gray[300],
+                      color: EXECUTIVE_COLORS.gray[700]
+                    }}
+                  >
+                    {['revenue', 'donors', 'gifts', 'retention', 'new_donors', 'lapsed'].map(metric => (
+                      <option key={metric} value={metric}>
+                        {metric.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Chart and Stats */}
+              {enhancedMultiYearData[enhancedMultiYearData.selectedMetric] ? (
+                <>
+                  <ReactECharts
+                    option={{
+                      tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: '#FFFFFF',
+                        borderColor: EXECUTIVE_COLORS.gray[200],
+                        borderWidth: 1,
+                        padding: [10, 12],
+                        textStyle: { color: EXECUTIVE_COLORS.gray[600], fontSize: 12 },
+                        formatter: (params) => {
+                          const data = params[0];
+                          let formattedValue;
+                          if (enhancedMultiYearData.selectedMetric === 'revenue') {
+                            formattedValue = `$${(data.value / 1000000).toFixed(2)}M`;
+                          } else if (enhancedMultiYearData.selectedMetric === 'retention') {
+                            formattedValue = `${data.value}%`;
+                          } else {
+                            formattedValue = data.value.toLocaleString();
+                          }
+                          return `<div style="font-weight:600;margin-bottom:4px;color:${EXECUTIVE_COLORS.gray[800]}">${data.name}</div>
+                                  <div style="color:${EXECUTIVE_COLORS.primary}">${enhancedMultiYearData.selectedMetric.replace('_', ' ')}: <strong>${formattedValue}</strong></div>`;
                         }
                       },
-                      lineStyle: { color: EXECUTIVE_COLORS.primary, width: 3 },
-                      itemStyle: { color: EXECUTIVE_COLORS.primary }
-                    }]
-                  }}
-                  style={{ height: 350 }}
-                />
+                      grid: {
+                        left: '3%',
+                        right: '4%',
+                        top: '10%',
+                        bottom: '10%',
+                        containLabel: true
+                      },
+                      xAxis: {
+                        type: 'category',
+                        data: (enhancedMultiYearData[enhancedMultiYearData.selectedMetric].data || []).map(d => d.year).reverse(),
+                        axisLabel: {
+                          color: EXECUTIVE_COLORS.gray[600],
+                          fontSize: 11
+                        },
+                        axisLine: {
+                          lineStyle: { color: EXECUTIVE_COLORS.gray[300] }
+                        },
+                        axisTick: { show: false }
+                      },
+                      yAxis: {
+                        type: 'value',
+                        axisLabel: {
+                          color: EXECUTIVE_COLORS.gray[600],
+                          fontSize: 11,
+                          formatter: (value) => {
+                            if (enhancedMultiYearData.selectedMetric === 'revenue') {
+                              return `$${(value / 1000000).toFixed(1)}M`;
+                            } else if (enhancedMultiYearData.selectedMetric === 'retention') {
+                              return `${value}%`;
+                            }
+                            return value.toLocaleString();
+                          }
+                        },
+                        splitLine: {
+                          lineStyle: {
+                            color: EXECUTIVE_COLORS.gray[200],
+                            type: 'dashed'
+                          }
+                        },
+                        axisLine: { show: false }
+                      },
+                      series: [{
+                        type: 'bar',
+                        data: (enhancedMultiYearData[enhancedMultiYearData.selectedMetric].data || []).map(d => d.value).reverse(),
+                        itemStyle: {
+                          color: EXECUTIVE_COLORS.primary,
+                          borderRadius: [6, 6, 0, 0]
+                        },
+                        barMaxWidth: 60,
+                        emphasis: {
+                          itemStyle: {
+                            color: EXECUTIVE_COLORS.primary,
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowOffsetY: 0,
+                            shadowColor: 'rgba(232, 117, 0, 0.3)'
+                          }
+                        },
+                        markLine: {
+                          data: [{ type: 'average', name: 'Average' }],
+                          lineStyle: {
+                            color: EXECUTIVE_COLORS.success,
+                            type: 'dashed'
+                          },
+                          label: {
+                            color: EXECUTIVE_COLORS.success,
+                            fontSize: 10
+                          }
+                        }
+                      }]
+                    }}
+                    style={{ height: 400 }}
+                  />
+
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-4 gap-4 mt-6">
+                    <div className="p-4 rounded-xl text-center"
+                         style={{ background: EXECUTIVE_COLORS.gradient.neutral }}>
+                      <p className="text-sm font-medium mb-1" style={{ color: EXECUTIVE_COLORS.gray[600] }}>
+                        {enhancedMultiYearData.selectedYears}-Year CAGR
+                      </p>
+                      <p className="text-2xl font-bold" style={{
+                        color: enhancedMultiYearData[enhancedMultiYearData.selectedMetric].cagr > 0 ? EXECUTIVE_COLORS.success : EXECUTIVE_COLORS.danger
+                      }}>
+                        {enhancedMultiYearData[enhancedMultiYearData.selectedMetric].cagr > 0 ? '+' : ''}
+                        {enhancedMultiYearData[enhancedMultiYearData.selectedMetric].cagr?.toFixed(1)}%
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl text-center"
+                         style={{ background: EXECUTIVE_COLORS.gradient.neutral }}>
+                      <p className="text-sm font-medium mb-1" style={{ color: EXECUTIVE_COLORS.gray[600] }}>
+                        Total Growth
+                      </p>
+                      <p className="text-2xl font-bold" style={{
+                        color: enhancedMultiYearData[enhancedMultiYearData.selectedMetric].total_growth > 0 ? EXECUTIVE_COLORS.success : EXECUTIVE_COLORS.danger
+                      }}>
+                        {enhancedMultiYearData[enhancedMultiYearData.selectedMetric].total_growth > 0 ? '+' : ''}
+                        {enhancedMultiYearData[enhancedMultiYearData.selectedMetric].total_growth?.toFixed(1)}%
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl text-center"
+                         style={{ background: EXECUTIVE_COLORS.gradient.neutral }}>
+                      <p className="text-sm font-medium mb-1" style={{ color: EXECUTIVE_COLORS.gray[600] }}>
+                        Latest Year
+                      </p>
+                      <p className="text-2xl font-bold" style={{ color: EXECUTIVE_COLORS.primary }}>
+                        {enhancedMultiYearData.selectedMetric === 'revenue'
+                          ? `$${(enhancedMultiYearData[enhancedMultiYearData.selectedMetric].data?.[0]?.value / 1000000).toFixed(1)}M`
+                          : enhancedMultiYearData.selectedMetric === 'retention'
+                          ? `${enhancedMultiYearData[enhancedMultiYearData.selectedMetric].data?.[0]?.value}%`
+                          : enhancedMultiYearData[enhancedMultiYearData.selectedMetric].data?.[0]?.value?.toLocaleString()}
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl text-center"
+                         style={{ background: EXECUTIVE_COLORS.gradient.neutral }}>
+                      <p className="text-sm font-medium mb-1" style={{ color: EXECUTIVE_COLORS.gray[600] }}>
+                        Trend
+                      </p>
+                      <div className="flex items-center justify-center gap-2">
+                        {enhancedMultiYearData[enhancedMultiYearData.selectedMetric].cagr > 0 ? (
+                          <TrendingUp className="h-5 w-5" style={{ color: EXECUTIVE_COLORS.success }} />
+                        ) : (
+                          <TrendingDown className="h-5 w-5" style={{ color: EXECUTIVE_COLORS.danger }} />
+                        )}
+                        <p className="text-lg font-semibold" style={{
+                          color: enhancedMultiYearData[enhancedMultiYearData.selectedMetric].cagr > 0 ? EXECUTIVE_COLORS.success : EXECUTIVE_COLORS.danger
+                        }}>
+                          {enhancedMultiYearData[enhancedMultiYearData.selectedMetric].cagr > 0 ? 'Growing' : 'Declining'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
               ) : (
-                <div className="text-center py-8">
-                  <p style={{ color: EXECUTIVE_COLORS.gray[500] }}>Loading multi-year trends...</p>
-                </div>
-              )}
-              {financialTrends.multiYearData && (
-                <div className="grid grid-cols-2 gap-4 mt-6">
-                  <div className="p-4 rounded-xl text-center" style={{ background: EXECUTIVE_COLORS.gradient.neutral }}>
-                    <p className="text-sm font-medium mb-1" style={{ color: EXECUTIVE_COLORS.gray[600] }}>CAGR</p>
-                    <p className="text-2xl font-bold" style={{ color: EXECUTIVE_COLORS.primary }}>
-                      {financialTrends.multiYearData.cagr?.toFixed(1)}%
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-xl text-center" style={{ background: EXECUTIVE_COLORS.gradient.neutral }}>
-                    <p className="text-sm font-medium mb-1" style={{ color: EXECUTIVE_COLORS.gray[600] }}>Total Growth</p>
-                    <p className="text-2xl font-bold" style={{ color: EXECUTIVE_COLORS.success }}>
-                      {financialTrends.multiYearData.total_growth?.toFixed(1)}%
-                    </p>
-                  </div>
+                <div className="text-center py-12">
+                  <p style={{ color: EXECUTIVE_COLORS.gray[500] }}>
+                    Loading {enhancedMultiYearData.selectedMetric.replace(/_/g, ' ')} trends...
+                  </p>
                 </div>
               )}
             </div>
